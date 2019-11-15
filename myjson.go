@@ -53,8 +53,8 @@ func decodeJson(r io.Reader) (*MyJson, error) {
 func NewJsonFromBytes(b []byte) *MyJson {
 	js, err := decodeJson(bytes.NewReader(b))
 	if err != nil {
-		errstr := fmt.Sprintf("js解析失败：%s", b)
-		return NewErrJson(1, errstr)
+		// errstr := fmt.Sprintf("js解析失败：%s", b)
+		return &MyJson{}
 	}
 	return js
 }
@@ -63,8 +63,8 @@ func NewJsonFromBytes(b []byte) *MyJson {
 func NewJsonFromStr(str string) *MyJson {
 	js, err := decodeJson(strings.NewReader(str))
 	if err != nil {
-		errstr := fmt.Sprintf("js解析失败：%s", str)
-		return NewErrJson(1, errstr)
+		// errstr := fmt.Sprintf("js解析失败：%s", str)
+		return &MyJson{}
 	}
 	return js
 }
@@ -82,14 +82,14 @@ func NewJsonFromStruct(b interface{}) *MyJson {
 	var f interface{}
 	bytesArr, err := json.Marshal(b)
 	if err != nil {
-		errstr := fmt.Sprintf("js解析失败：%v", err)
-		return NewErrJson(1, errstr)
+		// errstr := fmt.Sprintf("js解析失败：%v", err)
+		return &MyJson{}
 	}
 
 	err = json.Unmarshal(bytesArr, &f)
 	if err != nil {
-		errstr := fmt.Sprintf("js解析失败：%v", err)
-		return NewErrJson(1, errstr)
+		// errstr := fmt.Sprintf("js解析失败：%v", err)
+		return &MyJson{}
 	}
 
 	return &MyJson{data: f}

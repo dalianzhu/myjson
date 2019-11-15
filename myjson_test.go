@@ -202,8 +202,7 @@ func TestMyJson(t *testing.T) {
 	// 测试乱码
 	js = NewJson(`asdf;vjaspoipewqurj`)
 	fmt.Println("error json string", js)
-	intVal, _ = js.Get("err").Int()
-	as.Equal(1, intVal, "")
+	as.Equal(true, js.IsNil())
 
 	// 测试clone
 	js = NewJson(`{"data": 123.321, "arr":[{"name":"yzh"}]}`)
