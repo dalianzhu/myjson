@@ -110,8 +110,7 @@ jsDict["user"] = jsTp.Value() // {"user":{"age":18}}
 ...
 ```
 ### myjson的获取值的处理
-每个myjson对象，都包含尝试 Int Bool Float64的方法，仅仅需要：
-使用Value可以获取原始数据(一般为[]interface{}, map[string]interface{})
+每个myjson对象，都包含尝试 Int Bool Float64的方法，使用Value可以获取原始数据(一般为[]interface{}, map[string]interface{})
 ```
 jsDict := NewJson("{}")
 tpDict := NewDict()
