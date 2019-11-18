@@ -7,9 +7,9 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
-	"github.com/dalianzhu/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +26,7 @@ func TestMyJson(t *testing.T) {
 	*/
 	l := NewList().Add("1").Add("2").Add("3")
 	l = l.Add("4")
-	logger.Infoln("list l", l)
+	log.Println("list l", l)
 	as.Equal("4", l[3])
 
 	reqData := NewDict()
@@ -39,7 +39,7 @@ func TestMyJson(t *testing.T) {
 
 	reqData["Filters"] = NewList().Add(filters)
 	//{"Filters":[{"Name":"ServiceName","Values":["user_123"]}],"Limit":1024,"Offset":0}
-	logger.Debugf("TestLoopRouter_Call reqData %v", reqData.String())
+	log.Printf("TestLoopRouter_Call reqData %v", reqData.String())
 
 	/*
 		exp2: 使用myjson解析json，基本操作
@@ -48,7 +48,7 @@ func TestMyJson(t *testing.T) {
 	js := NewJson(jsStr)
 
 	limit, err := js.Get("Limit").Int()
-	logger.Debugf("err %v", err)
+	log.Printf("err %v", err)
 	as.Equal(1024, limit, "limit值为1024")
 
 	// set操作
@@ -60,14 +60,14 @@ func TestMyJson(t *testing.T) {
 	js = NewJson(`{"name":"yzh", "age":18}`)
 	js.Rm("age")
 	js.Rm("age123") // 删除一个不存在的key
-	logger.Debugf("rm age %v", js)
+	log.Printf("rm age %v", js)
 	as.Equal(true, js.Get("age").IsNil(), "删除了age字段")
 
 	// float操作
 	jsStr = `{"Filters":[{"Name":"ServiceName","Values":["user_123"]}],"Limit":1024.123,"Offset":0}`
 	js = NewJson(jsStr)
 	limitStr := js.Get("Limit").String()
-	logger.Debugf("js %v", js)
+	log.Printf("js %v", js)
 	as.Equal("1024.123", limitStr, "limit值为1024.123")
 
 	// append 操作
@@ -114,19 +114,19 @@ func TestMyJson(t *testing.T) {
 	as.Equal(isnil, true, "错误的get，返回nil 2")
 
 	_, err = js.Get("hello").Index(123).Get("haha").Bool()
-	logger.Debugf("err %v", err)
+	log.Printf("err %v", err)
 	if err == nil {
 		t.Fail()
 	}
 
 	_, err = js.Get("hello").Index(123).Get("haha").Int()
-	logger.Debugf("err %v", err)
+	log.Printf("err %v", err)
 	if err == nil {
 		t.Fail()
 	}
 
 	v = js.Get("hello").Index(123).Get("haha").String()
-	logger.Debugf("err value %v", v)
+	log.Printf("err value %v", v)
 	as.Equal("", v, "错误的值tostring返回空串")
 
 	/* 长数字 */
@@ -152,7 +152,7 @@ func TestMyJson(t *testing.T) {
 	array = append(array, 2)
 	js = NewJson(array)
 	arrayVal, err := js.Array()
-	logger.Debugf("Array err is %v, %v", err, arrayVal)
+	log.Printf("Array err is %v, %v", err, arrayVal)
 
 	intArray := make([]int, 0)
 	as.Equal(nil, err, "Array 无错误")
@@ -186,7 +186,7 @@ func TestMyJson(t *testing.T) {
 	array = append(array, 2)
 
 	js.Set("data3", array)
-	logger.Debugf("nice string %v %v", js, js.ShortNiceJson())
+	log.Printf("nice string %v %v", js, js.ShortNiceJson())
 
 	as.Equal("111223344556677889900112233445511223344556677889900112233445511223344556677889900112233445511223344556677889900112233445......",
 		js.ShortNiceJson().Get("data2").Index(0).Get("name").String(),

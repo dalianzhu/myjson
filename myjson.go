@@ -13,11 +13,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"strconv"
 	"strings"
 
-	"github.com/dalianzhu/logger"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -375,7 +375,7 @@ func (j *MyJson) String() string {
 	case map[string]interface{}, []interface{}, Dict, List:
 		result, err := json.Marshal(j.data)
 		if err != nil {
-			logger.Errorln("json to string error" + err.Error())
+			log.Println("convert to String is error", err)
 			return ""
 		}
 		return string(result)
@@ -568,6 +568,7 @@ func (l *List) String() string {
 		panic("json to string error" + err.Error())
 	}
 	return string(result)
+
 }
 
 func NewDict() Dict {
@@ -580,7 +581,7 @@ type Dict map[string]interface{}
 func (d *Dict) String() string {
 	result, err := json.Marshal(d)
 	if err != nil {
-		logger.Errorf("json to string error, %v", err)
+		log.Println("json to string error", err)
 		return ""
 	}
 	return string(result)
