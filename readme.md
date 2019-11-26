@@ -90,6 +90,8 @@ jsDict.Set("user", tpDict) // 两个myjson对象可以组合
 
 age, err := jsDict.Get("user").Get("age").Int()
 fmt.Println(age, err)
+
+realVal := jsDict.Value() // type map[string]interface{} 获取原始值
 ```
 判断一个值是否存在，必须使用`IsNil`方法：
 ```
