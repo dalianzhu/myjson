@@ -238,7 +238,7 @@ func maintainParent(child *MyJson) {
 	}
 }
 
-// Append 往数组中添加值，当json不为slice，则panic
+// Append 往数组中添加值，当json不为slice，将返回自身
 func (j *MyJson) Append(val interface{}) *MyJson {
 	var v interface{}
 	if value, ok := val.(*MyJson); ok {
@@ -249,7 +249,8 @@ func (j *MyJson) Append(val interface{}) *MyJson {
 
 	data, ok := appendSlice(j.data, v)
 	if !ok {
-		panic(fmt.Sprintf("%v not slice cannot append", j.data))
+		//panic(fmt.Sprintf("%v not slice cannot append", j.data))
+		return j
 	}
 	j.data = data
 
@@ -257,11 +258,12 @@ func (j *MyJson) Append(val interface{}) *MyJson {
 	return j
 }
 
-// Insert 往数组中添加值，当json不为slice，则panic
+// Insert 往数组中添加值，当json不为slice，返回自身，什么都不会发生
 func (j *MyJson) Insert(index int, val interface{}) *MyJson {
 	v, ok := insertSlice(index, j.data, val)
 	if !ok {
-		panic(fmt.Sprintf("%v not slice cannot insert", j.data))
+		//panic(fmt.Sprintf("%v not slice cannot insert", j.data))
+		return j
 	}
 	j.data = v
 	maintainParent(j)
@@ -320,12 +322,14 @@ func (j *MyJson) Set(key interface{}, val interface{}) *MyJson {
 	case string:
 		ok := setMap(v, j.data, val)
 		if !ok {
-			panic(fmt.Sprintf("%v not map cannot set", j.data))
+			//panic(fmt.Sprintf("%v not map cannot set", j.data))
+			return j
 		}
 	case int:
 		ok := setSlice(v, j.data, val)
 		if !ok {
-			panic(fmt.Sprintf("%v not map cannot set", j.data))
+			//panic(fmt.Sprintf("%v not map cannot set", j.data))
+			return j
 		}
 	}
 	return j
