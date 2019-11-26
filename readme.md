@@ -31,14 +31,8 @@ fmt.Println(js1.String()) // {"js2":{"name":"pig"}}
 ```
 
 ### json数组处理
-myjson也能方便的构造一个数组，构造数组有两种方式，一种是使用NewList结构，它与myjson结构完全兼容：
-```
-l := NewList().Add("1").Add("2").Add("3")
-l = l.Add("4")
-// l = [1,2,3,4]
+myjson也能方便的构造一个数组
 
-jsStr:=l.String() // jsStr == "[1,2,3,4]"
-```
 使用myjson的Append方法
 ```
 js:=NewJson("[]")
@@ -84,45 +78,20 @@ jsDict.RangeMap(func(key string, val interface{}) bool {
 // name yzh
 // age 18
 ```
-使用NewDict结构临时构造一个字典
-```
-jsDict := NewJson("{}")
 
-tpDict := NewDict()
-tpDict["name"] = "yzh"
-tpDict["age"] = 18
-
-jsDict.Set("user", tpDict)
-fmt.Println(jsDict.String())
-// output:{"user":{"age":18,"name":"yzh"}}
-```
-注意，如果使用NewDict结构，对tpDict赋值myjson将不能达到预期：
-```
-jsTp := NewJson("{}")
-jsTp.Set("age", 18)
-
-jsDict := NewDict()
-jsDict["user"] = jsTp
-fmt.Println(jsDict.String()) // output:{"user":{}}
-// 正确做法是用myjson的原始值：
-...
-jsDict["user"] = jsTp.Value() // {"user":{"age":18}}
-...
-```
-### myjson的获取值的处理
+### myjson 获取json值
 每个myjson对象，都包含尝试 Int Bool Float64的方法，使用Value可以获取原始数据(一般为[]interface{}, map[string]interface{})
 ```
 jsDict := NewJson("{}")
-tpDict := NewDict()
-tpDict["name"] = "yzh"
-tpDict["age"] = 18
-jsDict.Set("user", tpDict)
+tpDict := NewJson("{}")
+tpDict.Set("name", "yzh")
+tpDict.Set("age", 18)
+jsDict.Set("user", tpDict) // 两个myjson对象可以组合
 
 age, err := jsDict.Get("user").Get("age").Int()
-
 fmt.Println(age, err)
 ```
-判断一个值是否存在，使用IsNil方法：
+判断一个值是否存在，必须使用`IsNil`方法：
 ```
 jsDict := NewJson("{}")
 jsDict.Set("name", "yzh")
