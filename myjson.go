@@ -388,6 +388,24 @@ func (j *MyJson) String() string {
 	}
 }
 
+// Bytes 返回myjson对象的bytes值
+func(j *MyJson) Bytes() []byte{
+	if j.data == nil {
+		return []byte("")
+	}
+	switch j.data.(type) {
+	case map[string]interface{}, []interface{}, Dict, List:
+		result, err := json.Marshal(j.data)
+		if err != nil {
+			log.Println("convert to bytes is error", err)
+			return []byte("")
+		}
+		return result
+	default:
+		return []byte(ToStr(j.data))
+	}
+}
+
 // Int 返回myjson对象的真实数据
 func (j *MyJson) Int() (int, error) {
 	v := j.data
