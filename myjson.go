@@ -12,16 +12,24 @@ import (
     sysjson "encoding/json"
     "errors"
     "fmt"
+    jsoniter "github.com/json-iterator/go"
+    "gopkg.in/go-playground/validator.v9"
     "io"
     "log"
     "math"
     "strconv"
     "strings"
-
-    jsoniter "github.com/json-iterator/go"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+var Debug = false
+
+func debugf(format string, v ...interface{}) {
+    if Debug {
+        log.Println(fmt.Sprintf(format, v...))
+    }
+}
 
 type MyJson struct {
     prev      *MyJson
@@ -705,4 +713,137 @@ func ToBool(item interface{}) (bool, error) {
         }
         return boolValue, nil
     }
+}
+
+/* Validate 引入 validator
+{
+	"name": "gt=5@name must greater than 5",
+	"info": [{
+		"name": "gt=5",
+		"years": "gt=2@years must greater than 2"
+	}]
+}
+*/
+
+func Validate(origin interface{}, rules interface{}) error {
+    validate := validator.New()
+    debugf("Validate origin:%v", origin)
+    debugf("Validate rules:%v", rules)
+    err := validateMap(validate, origin, rules)
+    return err
+}
+
+// origin rule永远为同一种类型，否则是rule出错
+func validateMap(validate *validator.Validate, origin interface{}, ruleInfos interface{}) error {
+    //debugf("validateMap origin:%v", origin)
+    //debugf("validateMap rules:%v", ruleInfos)
+    _, ok := origin.(map[string]interface{})
+    if !ok {
+        return fmt.Errorf("origin:%v is not maps", origin)
+    }
+    switch v := ruleInfos.(type) {
+    case map[string]interface{}:
+        ov, ok := origin.(map[string]interface{})
+        if !ok {
+            log.Printf("origin:%v is not map\n", origin)
+            return fmt.Errorf("origin is not map: %v", origin)
+        }
+
+        for key := range v {
+            debugf("key:%v", key)
+
+            err := validateValue(validate, v, key, ov[key], v[key])
+            if err != nil {
+                return err
+            }
+        }
+    default:
+        return fmt.Errorf("ruleInfos:%v is not maps", origin)
+    }
+    return nil
+}
+
+func validateSlice(validate *validator.Validate, origin interface{}, ruleInfos interface{}) error {
+    _, ok := origin.([]interface{})
+    if !ok {
+        return fmt.Errorf("origin:%v is not maps", origin)
+    }
+    switch v := ruleInfos.(type) {
+    case []interface{}:
+        ov, ok := origin.([]interface{})
+        if !ok {
+            return fmt.Errorf("validateSlice origin is not slice: %v", origin)
+        }
+
+        for i := range v {
+            ret := validateValue(validate, v, "", ov[i], v[0])
+            if ret != nil {
+                return ret
+            }
+        }
+    default:
+        return fmt.Errorf("ruleInfos:%v is not maps", origin)
+    }
+    return nil
+}
+
+type ruleCache struct {
+    rule   string
+    errMsg string
+}
+
+func validateValue(validate *validator.Validate,
+    ruleParent interface{}, key string, origin interface{}, info interface{}) error {
+    debugf("validateValue origin:%v, info:%v", origin, info)
+    var cache *ruleCache
+
+    switch v := info.(type) {
+    case []interface{}:
+        if origin == nil {
+            return nil
+        }
+        return validateSlice(validate, origin, v)
+    case map[string]interface{}:
+        if origin == nil {
+            return nil
+        }
+        return validateMap(validate, origin, info)
+    // 说明info是一个原始的规则信息
+    case string:
+        debugf("info is string, key:%v", key)
+        infoDataArray := strings.Split(v, "@")
+        cache = new(ruleCache)
+        if len(infoDataArray) == 2 {
+            cache.rule = infoDataArray[0]
+            cache.errMsg = infoDataArray[1]
+
+        } else {
+            cache.rule = infoDataArray[0]
+        }
+
+        switch pv := ruleParent.(type) {
+        case []interface{}:
+            pv[0] = cache
+        case map[string]interface{}:
+            pv[key] = cache
+        }
+    case *ruleCache:
+        debugf("get cache")
+        cache = v
+    }
+    //debugf("infoDataArray,origin:%v,originType:%v rule:%v, msg:%v", origin, reflect.TypeOf(origin), cache.rule, cache.errMsg)
+    _, ok := origin.(sysjson.Number)
+    if ok {
+        originNum, _ := ToInt(origin)
+        origin = originNum
+    }
+    if err := validate.Var(origin, cache.rule); err != nil {
+        debugf("validateValue default return false,%v", err)
+        if cache.errMsg != "" {
+            return errors.New(cache.errMsg)
+        }
+        return fmt.Errorf("%v check error!! rules:%v", origin, cache.rule)
+    }
+    return nil
+
 }
