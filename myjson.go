@@ -425,8 +425,8 @@ func (j *MyJson) Float64() (float64, error) {
 
 // Bool 返回myjson对象的真实数据
 func (j *MyJson) Bool() (bool, error) {
-    v, ok := j.data.(bool)
-    if ok {
+    v, err := ToBool(j.data)
+    if err != nil {
         return v, nil
     }
     return false, fmt.Errorf("%v is not bool", j.data)
@@ -684,4 +684,18 @@ func ToFloat64(item interface{}) (float64, error) {
         }
     }
     return 0, fmt.Errorf("%v cannot convert to float", item)
+}
+
+func ToBool(item interface{}) (bool, error) {
+
+    switch v := item.(type) {
+    case bool:
+        return v, nil
+    default:
+        boolValue, err := strconv.ParseBool(ToStr(item))
+        if err != nil {
+            return false, fmt.Errorf("%v cannot convert to bool", item)
+        }
+        return boolValue, nil
+    }
 }
