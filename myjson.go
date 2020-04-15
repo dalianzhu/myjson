@@ -30,7 +30,7 @@ type MyJson struct {
     data      interface{}
 }
 
-// NewJson 从其它对象创建myJson对象。
+// NewJson 从string, []byte, interface{}等对象创建myJson对象。从结构体创建应使用：NewJsonFromStruct
 func NewJson(data interface{}) *MyJson {
     switch v := data.(type) {
     case string:
@@ -98,6 +98,7 @@ func NewJsonFromStruct(b interface{}) *MyJson {
     return &MyJson{data: f}
 }
 
+// NewJsonFromData 从interface{}创建一个json。并不会做什么处理，只是用来包装原始数据。
 func NewJsonFromData(d interface{}) *MyJson {
     return &MyJson{data: d}
 }
@@ -206,7 +207,7 @@ func insertSlice(index int, sliceBody, data interface{}) (interface{}, bool) {
     }
 }
 
-// Get 获取一个key值。
+// Get 获取一个key值。返回myjson对象
 func (j *MyJson) Get(key string) *MyJson {
     m, ok := getMap(key, j.data)
     if !ok {
@@ -238,7 +239,7 @@ func maintainParent(child *MyJson) {
     }
 }
 
-// Append 往数组中添加值，当json不为slice，将返回自身
+// Append 往数组中添加值并返回自身，当json不为slice，将直接返回自身
 func (j *MyJson) Append(val interface{}) *MyJson {
     var v interface{}
     if value, ok := val.(*MyJson); ok {
@@ -270,7 +271,7 @@ func (j *MyJson) Insert(index int, val interface{}) *MyJson {
     return j
 }
 
-// IsNil 判定data最不是空
+// IsNil 判定data是不是空，常用来检测NewJson, Get, Index的结果是否为空
 func (j *MyJson) IsNil() bool {
     if j.data == nil {
         return true
@@ -278,6 +279,7 @@ func (j *MyJson) IsNil() bool {
     return false
 }
 
+// IsSlice 判定myjson对象源数据是不是数组结构
 func (j *MyJson) IsSlice() bool {
     switch j.data.(type) {
     case List:
@@ -289,6 +291,7 @@ func (j *MyJson) IsSlice() bool {
     }
 }
 
+// IsMap 判定myjson对象源数据是不是k-v结构
 func (j *MyJson) IsMap() bool {
     switch j.data.(type) {
     case Dict, map[string]interface{}:
@@ -298,7 +301,7 @@ func (j *MyJson) IsMap() bool {
     }
 }
 
-// Index 传入位置获取slice对应位置的myjson对象
+// Index 传入位置，获取slice对应位置的myjson对象。如果这个对象不存在，返回的myjson对象 IsNil将为true
 func (j *MyJson) Index(key int) *MyJson {
     v, ok := getSlice(key, j.data)
     if !ok {
@@ -335,6 +338,7 @@ func (j *MyJson) Set(key interface{}, val interface{}) *MyJson {
     return j
 }
 
+// Rm 删除myjson的一个key。目前不能操作slice，只能操作k-v结构
 func (j *MyJson) Rm(key interface{}) *MyJson {
     switch keyVal := key.(type) {
     case string:
@@ -358,7 +362,7 @@ func (j *MyJson) Value() interface{} {
     return v
 }
 
-// Len 返回数组对象的长度
+// Len 返回数组对象的长度，如果源数据不是数组，则返回0
 func (j *MyJson) Len() int {
     switch v := j.data.(type) {
     case []interface{}:
@@ -406,7 +410,7 @@ func (j *MyJson) Bytes() []byte {
     }
 }
 
-// Int 返回myjson对象的真实数据
+// Int 返回myjson对象的源数据, 并尝试转换为int
 func (j *MyJson) Int() (int, error) {
     v := j.data
     if v == nil {
@@ -415,6 +419,7 @@ func (j *MyJson) Int() (int, error) {
     return ToInt(v)
 }
 
+// Float64 返回myjson对象的源数据, 并尝试转换为float64
 func (j *MyJson) Float64() (float64, error) {
     v := j.data
     if v == nil {
@@ -423,7 +428,7 @@ func (j *MyJson) Float64() (float64, error) {
     return ToFloat64(v)
 }
 
-// Bool 返回myjson对象的真实数据
+// Bool 返回myjson对象的源数据, 并尝试转换为bool
 func (j *MyJson) Bool() (bool, error) {
     v, err := ToBool(j.data)
     if err != nil {
@@ -432,7 +437,7 @@ func (j *MyJson) Bool() (bool, error) {
     return false, fmt.Errorf("%v is not bool", j.data)
 }
 
-// Array 返回数组对象的真实数据
+// Array 返回数组对象的源数据，如果源数据不是数组，则返回error
 func (j *MyJson) Array() ([]interface{}, error) {
     if j.IsSlice() == false {
         return nil, fmt.Errorf("%v is not array", j.data)
@@ -448,6 +453,7 @@ func (j *MyJson) Array() ([]interface{}, error) {
     }
 }
 
+// RangeMap 遍历kv结构， 传入的函数用于处理遍历。如果这个函数返回false，遍历将立刻结束
 func (j *MyJson) RangeMap(f func(key string, val interface{}) bool) error {
     if j.IsMap() == false {
         return fmt.Errorf("%v is not map", j.data)
@@ -471,6 +477,7 @@ func (j *MyJson) RangeMap(f func(key string, val interface{}) bool) error {
     return nil
 }
 
+// RangeSlice 遍历数组结构， 传入的函数用于处理遍历。如果这个函数返回false，遍历将立刻结束
 func (j *MyJson) RangeSlice(f func(index int, val interface{}) bool) error {
     if j.IsSlice() == false {
         return fmt.Errorf("%v is not Slice", j.data)
@@ -548,7 +555,7 @@ func handlerString(js string, cutLongStr bool) string {
     return js
 }
 
-// ShortNiceJson 用来打印的json，把长的string省略成不超过20个字符的数据
+// ShortNiceJson 性能差，返回处理过的json，这个json中所有的字符串都被截断成不超过20个字符的数据
 func (j *MyJson) ShortNiceJson() *MyJson {
     cutLongStr := true
     if j.IsSlice() {
@@ -560,7 +567,7 @@ func (j *MyJson) ShortNiceJson() *MyJson {
     return NewJson(j.data)
 }
 
-// Clone 把这个json对象clone一份，深复制，性能杀手
+// Clone 把这个json对象clone一份，深复制，性能差
 func (j *MyJson) Clone() *MyJson {
     cutLongStr := false
     if j.IsSlice() {
