@@ -115,3 +115,131 @@ jscopy := js.Clone()
 intVal, _ := js.ShortNiceJson()
 ```
 它会深复制这个json，并把所有超过120个字符的值裁剪为"前120位xxxxx......"
+
+### 检验json的合法性
+引入了validator来检验json的合法性，具体的规则可以参考	"gopkg.in/go-playground/validator.v9" 项目。
+
+简单示例：
+
+每个Key的规则用`;`与errmsg分隔。如果不传errmsg将传出默认的错误
+```
+rules := `
+{
+	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"age": "gt=20;age must greater than 20"
+}
+`
+data:= `
+{
+	"name":"hi",
+	"age": 25
+}
+
+err := Validate(NewJson(data), NewJson(rules))
+// err: user name must greater than 5, and not empty
+`
+```
+
+子key info 是一个k-v结构, 则会深入检测到它的内部:
+```
+rules := `
+{
+	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"info": {
+		"age": "gt=20;age must greater than 20"
+	}
+}
+`
+data:= `
+{
+	"name":"helloworld",
+	"info": {
+		"age": 15
+	}
+}
+
+err := Validate(NewJson(data), NewJson(rules))
+// err: age must greater than 20
+```
+
+子key info是一个KV结构，而且不能不传值，在info的描述下加上`_required`，它的value是返回的错误信息
+```
+rules := `
+{
+	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"info": {
+		"age": "gt=20;age must greater than 20",
+		"_required": "info not exists"
+	}
+}
+`
+data:= `
+{
+	"name":"helloworld",
+}
+
+err := Validate(NewJson(data), NewJson(rules))
+// err: info not exists
+```
+
+子key info 是一个数组，可以定义子key规则
+```go
+rules := `
+{
+	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"info": ["gt=20;info must greater than 20"]
+}
+`
+data:= `
+{
+	"name":"helloworld",
+	"info": [120,25,3]
+}
+
+err := Validate(NewJson(data), NewJson(rules))
+// err: gt=20;info must greater than 20
+```
+注意，子key是数组，数组的value可以为任何json类型，遵从上面的规则
+```
+rules := `
+{
+	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"info": [
+		{
+			"age": "gt=20"
+		}
+	]
+}
+```
+如果子key是数组，且这个key不能不传。则将它的第二个value设为`_required;ERRMSG`
+```
+rules := `
+{
+	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"info": [
+		{
+			"age": "gt=20"
+		},
+		"_required;info cannot be empty"
+	]
+}
+```
+
+附带一个复杂的例子:
+```json
+{
+	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"info": [{
+			"years": "gt=2;years must greater than 2"
+		},
+		"_required;info must has value"
+	],
+	"attr": {
+		"name": "gt=5;attr name must greater than 5",
+		"vals": ["gt=10;vals must greater than 10"]
+	},
+	"company": {
+		"_required": "company is empty"
+	}
+}
+```
