@@ -25,7 +25,7 @@ import (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-var Debug = true
+var Debug = false
 
 func debugf(format string, v ...interface{}) {
     if Debug {
