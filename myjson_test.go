@@ -230,6 +230,7 @@ func TestValidate(t *testing.T) {
 	rules := `
 {
 	"name": "gt=5,required;user name must greater than 5, and not empty",
+	"notReq": "gt=5;i am not required",
 	"info": [{
 			"years": "gt=2;years must greater than 2"
 		},
@@ -285,7 +286,7 @@ func TestValidate(t *testing.T) {
 	origin = `
 {
 	"info": [{
-		"years": 3,
+		"years": 30,
 		"age": 18
 	}],
     "willRequired":{}

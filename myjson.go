@@ -794,8 +794,9 @@ func validateSlice(validate *validator.Validate, origin interface{}, ruleInfos i
 }
 
 type ruleCache struct {
-    rule   string
-    errMsg string
+    rule     string
+    errMsg   string
+    required bool
 }
 type isRequired struct {
     isRequired bool
@@ -890,12 +891,16 @@ func validateValue(validate *validator.Validate,
         debugf("info is string, key:%v", key)
         infoDataArray := cutSemicolon(v)
         cache = new(ruleCache)
+        cache.required = false
         if len(infoDataArray) >= 2 {
             cache.rule = infoDataArray[0]
             cache.errMsg = infoDataArray[1]
 
         } else if len(infoDataArray) > 0 {
             cache.rule = infoDataArray[0]
+        }
+        if strings.Contains(cache.rule, "required") {
+            cache.required = true
         }
 
         switch pv := ruleParent.(type) {
@@ -923,6 +928,9 @@ func validateValue(validate *validator.Validate,
     if ok {
         originNum, _ := ToInt(origin)
         origin = originNum
+    }
+    if cache.required == false && origin == nil {
+       return nil
     }
     if err := validate.Var(origin, cache.rule); err != nil {
         debugf("validateValue default return false,%v", err)
