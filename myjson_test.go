@@ -245,7 +245,7 @@ func TestValidate(t *testing.T) {
     }
 }
 `
-	rulesJs := NewJson(rules)
+	rulesJs := NewValidateRules(rules)
 	debugf("rulesJs is:%s", rulesJs)
 
 	check := func(origin string, errMsg string) {
@@ -359,6 +359,9 @@ func TestValidate(t *testing.T) {
     "name":"hello hello",
 	"info": [{
 		"years": 3,
+		"age": 18
+	},{
+		"years": 11,
 		"age": 18
 	},{
 		"years": 1,

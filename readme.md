@@ -135,7 +135,7 @@ data:= `
 	"age": 25
 }
 
-err := Validate(NewJson(data), NewJson(rules))
+err := Validate(NewJson(data), NewValidateRules(rules))
 // err: user name must greater than 5, and not empty
 `
 ```
@@ -158,7 +158,7 @@ data:= `
 	}
 }
 
-err := Validate(NewJson(data), NewJson(rules))
+err := Validate(NewJson(data), NewValidateRules(rules))
 // err: age must greater than 20
 ```
 
@@ -178,7 +178,7 @@ data:= `
 	"name":"helloworld",
 }
 
-err := Validate(NewJson(data), NewJson(rules))
+err := Validate(NewJson(data), NewValidateRules(rules))
 // err: info not exists
 ```
 
@@ -196,7 +196,7 @@ data:= `
 	"info": [120,25,3]
 }
 
-err := Validate(NewJson(data), NewJson(rules))
+err := Validate(NewJson(data), NewValidateRules(rules))
 // err: gt=20;info must greater than 20
 ```
 注意，子key是数组，数组的value可以为任何json类型，遵从上面的规则
