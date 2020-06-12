@@ -391,12 +391,15 @@ func (j *MyJson) String() string {
     }
     switch j.data.(type) {
     case map[string]interface{}, []interface{}, Dict, List:
-        result, err := json.Marshal(j.data)
+        buffer := &bytes.Buffer{}
+        encoder := json.NewEncoder(buffer)
+        //encoder.SetEscapeHTML(false)
+        err := encoder.Encode(j.data)
         if err != nil {
             log.Println("convert to String is error", err)
             return ""
         }
-        return string(result)
+        return buffer.String()
     default:
         return ToStr(j.data)
     }
@@ -440,11 +443,7 @@ func (j *MyJson) Float64() (float64, error) {
 
 // Bool 返回myjson对象的源数据, 并尝试转换为bool
 func (j *MyJson) Bool() (bool, error) {
-    v, err := ToBool(j.data)
-    if err != nil {
-        return v, nil
-    }
-    return false, fmt.Errorf("%v is not bool", j.data)
+    return ToBool(j.data)
 }
 
 // Array 返回数组对象的源数据，如果源数据不是数组，则返回error
@@ -716,5 +715,3 @@ func ToBool(item interface{}) (bool, error) {
         return boolValue, nil
     }
 }
-
-
