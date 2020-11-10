@@ -9,6 +9,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 import (
 	"bytes"
+	"encoding/json"
 	sysjson "encoding/json"
 	"errors"
 	"fmt"
@@ -18,11 +19,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	jsoniter "github.com/json-iterator/go"
+	// jsoniter "github.com/json-iterator/go"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
+// var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 var Debug = true
 
@@ -415,7 +415,8 @@ func (j *MyJson) String() string {
 			log.Println("convert to String is error", err)
 			return ""
 		}
-		return buffer.String()
+		return strings.TrimRight(buffer.String(), "\n")
+
 	default:
 		return ToStr(j.data)
 	}
