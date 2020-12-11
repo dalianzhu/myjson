@@ -9,11 +9,24 @@ import (
 type NilJson struct {
 }
 
+func (n *NilJson) MarshalJSON() ([]byte, error) {
+	return []byte("null"), nil
+}
+
+func (n *NilJson) UnmarshalJSON(bytes []byte) error {
+	return nil
+}
+
+func (n *NilJson) GetValue() interface{} {
+	panic("implement me")
+}
+
 func (n *NilJson) Get(key string) MyJson2 {
 	return new(NilJson)
 }
 
-func (n *NilJson) Set(key string, val interface{}) {
+func (n *NilJson) Set(key string, val interface{}) error {
+	return nil
 }
 
 func (n *NilJson) PbValue() *structpb.Value {
@@ -27,12 +40,12 @@ func (n *NilJson) Index(i int) MyJson2 {
 	return new(NilJson)
 }
 
-func (n *NilJson) Insert(i int, val interface{}) MyJson2 {
-	return new(NilJson)
+func (n *NilJson) Insert(i int, val interface{}) (MyJson2, error) {
+	return new(NilJson), nil
 }
 
-func (n *NilJson) Append(val interface{}) MyJson2 {
-	return new(NilJson)
+func (n *NilJson) Append(val interface{}) (MyJson2, error) {
+	return new(NilJson), nil
 }
 
 func (n *NilJson) Len() int {

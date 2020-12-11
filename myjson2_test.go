@@ -6,8 +6,11 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 */
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +19,59 @@ import (
 type testStruct struct {
 	Name string `json:"Name"`
 	Age  int    `json:"Age"`
+}
+
+func TestMyJson2Simple(t *testing.T) {
+	IsDebug = true
+	jsStr := `
+{"key1":{"key2":"123"}, "key3":{}}
+`
+	js := NewJson(jsStr)
+	Debugf("TestMyJson2:%v", js)
+
+	js = NewJson(longJsonVal)
+	Debugf("TestMyJson2:%s", js)
+}
+
+func TestMyJson2Example(t *testing.T) {
+	const jsonStream = `
+		{"Message": "Hello", "Array": [1, 2, 3], "Null": null, "Number": 1.234}
+	`
+	dec := json.NewDecoder(strings.NewReader(jsonStream))
+	for {
+		t, err := dec.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%T: %v", t, t)
+		if dec.More() {
+			fmt.Printf(" (more)")
+		}
+		fmt.Printf("\n")
+	}
+}
+
+func TestMyJson2Float(t *testing.T) {
+	as := assert.New(t)
+	js := NewJson(`{"data":{"err":true},"env":{"float":123.321}}`)
+	fmt.Println(js.String())
+	intVal, err := js.Get("env").Get("float").Int()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	as.Equal(123, intVal, "longInt的值不变")
+
+	floatVal, err := js.Get("env").Get("float").Float64()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	as.Equal(123.321, floatVal, "longInt的值不变")
+
 }
 
 func TestMyJson2LongInt(t *testing.T) {
@@ -49,10 +105,15 @@ func TestStruct(t *testing.T) {
 func TestAppend(t *testing.T) {
 	as := assert.New(t)
 	js := NewJson(`{"sub":[]}`)
+	log.Printf("TestAppend js:%v", js)
+	if js.Get("sub").IsErrOrNil() {
+		t.Error("append sub is not nil")
+	}
 	js.Get("sub").Append("hello")
 	log.Printf("TestAppend: %s\n", js)
+
 	if js.Get("sub").Len() != 1 {
-		as.Fail("")
+		as.Fail("append failed")
 	}
 }
 
@@ -193,4 +254,25 @@ func TestMyJson2(t *testing.T) {
 	fmt.Println("copy js:", jscopy)
 
 	log.Println("all success")
+}
+
+func BenchmarkTestMyjsonSysJson(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	for i := 0; i < b.N; i++ {
+		tp := new(testLongJsonStruct)
+		err := json.Unmarshal(bsVal, tp)
+		if err != nil {
+			b.Fail()
+		}
+	}
+}
+
+func BenchmarkTestMyjson(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	for i := 0; i < b.N; i++ {
+		js := NewJson(bsVal)
+		if js.IsErrOrNil() {
+			b.Fail()
+		}
+	}
 }

@@ -5,6 +5,7 @@ import (
 	sysjson "encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"reflect"
 	"strconv"
@@ -13,13 +14,21 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+var IsDebug = false
+
+func Debugf(format string, i ...interface{}) {
+	if IsDebug {
+		log.Printf(format+"\n", i...)
+	}
+}
+
 type MyJson2 interface {
 	Get(key string) MyJson2
-	Set(key string, val interface{})
+	Set(key string, val interface{}) error
 	Rm(key string)
 	Index(i int) MyJson2
-	Insert(i int, val interface{}) MyJson2
-	Append(val interface{}) MyJson2
+	Insert(i int, val interface{}) (MyJson2, error)
+	Append(val interface{}) (MyJson2, error)
 
 	Len() int
 	String() string
@@ -39,56 +48,67 @@ type MyJson2 interface {
 	PbValue() *structpb.Value
 }
 
+func NewJsonFromBytes(bytesVal []byte) MyJson2 {
+	val := &JsonVal{}
+	err := val.UnmarshalJSON(bytesVal)
+	if err != nil {
+		return &NilJson{}
+	}
+	v := &ValueJson{val}
+	return v
+}
+
 func NewJson(val interface{}) MyJson2 {
 	switch v := val.(type) {
 	case string:
-		pbVal := new(structpb.Value)
-		err := pbVal.UnmarshalJSON([]byte(v))
-		if err != nil {
-			return &NilJson{}
-		}
-		return &ValueJson{pbVal}
+		val := NewJsonFromBytes([]byte(v))
+		Debugf("NewJson1:%v", val)
+		return val
 	case []byte:
-		pbVal := new(structpb.Value)
-		err := pbVal.UnmarshalJSON(v)
-		if err != nil {
-			return &NilJson{}
-		}
-		return &ValueJson{pbVal}
+		val := NewJsonFromBytes(v)
+		Debugf("NewJson2:%v", val)
+		return val
 	}
 
 	refVal := reflect.ValueOf(val)
 	switch refVal.Kind() {
 	case reflect.Struct, reflect.Slice:
-		bytesArr, err := json.Marshal(val)
+		bytesVal, err := json.Marshal(val)
 		if err != nil {
 			// errstr := fmt.Sprintf("js解析失败：%v", err)
 			return &NilJson{}
 		}
-		pbVal := new(structpb.Value)
-		pbVal.UnmarshalJSON(bytesArr)
-		return &ValueJson{pbVal}
+		return NewJsonFromBytes(bytesVal)
+
 	case reflect.Ptr:
 		if refVal.Elem().Kind() == reflect.Struct {
-			bytesArr, err := json.Marshal(val)
+			bytesVal, err := json.Marshal(val)
 			if err != nil {
 				// errstr := fmt.Sprintf("js解析失败：%v", err)
 				return &NilJson{}
 			}
-			pbVal := new(structpb.Value)
-			pbVal.UnmarshalJSON(bytesArr)
-			return &ValueJson{pbVal}
+			return NewJsonFromBytes(bytesVal)
 		}
 	}
 	return &NilJson{}
 }
 
 type ValueJson struct {
-	data *structpb.Value
+	data *JsonVal
 }
 
 func (v *ValueJson) PbValue() *structpb.Value {
-	return v.data
+	bytesVal, err := v.data.Kind.MarshalJSON()
+	if err != nil {
+		return nil
+	}
+
+	pbVal := new(structpb.Value)
+	err = pbVal.UnmarshalJSON(bytesVal)
+	if err != nil {
+		return nil
+	}
+	return pbVal
 }
 
 func (v *ValueJson) Get(key string) MyJson2 {
@@ -96,12 +116,14 @@ func (v *ValueJson) Get(key string) MyJson2 {
 		return new(NilJson)
 	}
 
-	structVal := v.data.GetStructValue()
-	if structVal != nil {
-		v, ok := structVal.Fields[key]
-		if ok {
-			return &ValueJson{v}
-		}
+	structVal, ok := v.data.Kind.(*MapJsonValKind)
+	if !ok {
+		return new(NilJson)
+	}
+
+	jsonValData, ok := structVal.val[key]
+	if ok {
+		return &ValueJson{jsonValData}
 	}
 	return new(NilJson)
 }
@@ -120,70 +142,88 @@ func iterToPbValue(val interface{}) *structpb.Value {
 	return structpb.NewNullValue()
 }
 
-func (v *ValueJson) Set(key string, val interface{}) {
+func (v *ValueJson) Set(key string, val interface{}) error {
 	if v.IsErrOrNil() {
-		return
+		return fmt.Errorf("json is nil")
 	}
-	structVal := v.data.GetStructValue()
-	if structVal != nil {
-		structVal.Fields[key] = iterToPbValue(val)
+	structVal, ok := v.data.Kind.(*MapJsonValKind)
+	if !ok {
+		return fmt.Errorf("json is not map json")
 	}
+	jsonValData, err := toJsonValKind(val)
+	if err != nil {
+		return nil
+	}
+	structVal.val[key] = &JsonVal{jsonValData}
+	return nil
 }
 
 func (v *ValueJson) Rm(key string) {
 	if v.IsErrOrNil() {
 		return
 	}
-	structVal := v.data.GetStructValue()
-	if structVal != nil {
-		delete(v.data.GetStructValue().Fields, key)
+	structVal, ok := v.data.Kind.(*MapJsonValKind)
+	if !ok {
+		return
 	}
+	delete(structVal.val, key)
 }
 
 func (v *ValueJson) Index(i int) MyJson2 {
-	l := v.data.GetListValue()
-	if l == nil {
-		return new(NilJson)
+	listVal, ok := v.data.Kind.(*SliceJsonValKind)
+	if !ok {
+		return &NilJson{}
 	}
-	if i >= len(l.Values) {
+
+	if i >= len(listVal.val) {
 		return new(NilJson)
 	}
 
-	valueData := l.Values[i]
+	valueData := listVal.val[i]
 	return &ValueJson{valueData}
 }
 
-func insertValue(sliceBody []*structpb.Value, index int, val *structpb.Value) []*structpb.Value {
+func insertValue(sliceBody []*JsonVal, index int, val *JsonVal) []*JsonVal {
 	// 把尾巴弄出来
-	rear := append([]*structpb.Value{}, sliceBody[index:]...)
+	rear := append([]*JsonVal{}, sliceBody[index:]...)
 	tpSlice := append(sliceBody[0:index], val)
 	return append(tpSlice, rear...)
 }
 
-func (v *ValueJson) Insert(i int, val interface{}) MyJson2 {
-	l := v.data.GetListValue()
-	if l == nil {
-		return new(NilJson)
+func (v *ValueJson) Insert(i int, val interface{}) (MyJson2, error) {
+	listVal, ok := v.data.Kind.(*SliceJsonValKind)
+	if !ok {
+		return &NilJson{}, fmt.Errorf("json is not slice json")
 	}
-	l.Values = insertValue(l.Values, i, iterToPbValue(val))
-	return v
+
+	jsonValKind, err := toJsonValKind(val)
+	if err != nil {
+		return v, err
+	}
+	listVal.val = insertValue(listVal.val, i, &JsonVal{jsonValKind})
+	return v, nil
 }
 
-func (v *ValueJson) Append(val interface{}) MyJson2 {
-	l := v.data.GetListValue()
-	if l == nil {
-		return new(NilJson)
+func (v *ValueJson) Append(val interface{}) (MyJson2, error) {
+	l, ok := v.data.Kind.(*SliceJsonValKind)
+	if !ok {
+		return &NilJson{}, fmt.Errorf("json is not slice json")
 	}
-	l.Values = append(l.Values, iterToPbValue(val))
-	return v
+	jsonValKind, err := toJsonValKind(val)
+	if err != nil {
+		return v, err
+	}
+	// Debugf("append:%v\n", jsonValKind)
+	l.val = append(l.val, &JsonVal{jsonValKind})
+	return v, nil
 }
 
 func (v *ValueJson) Len() int {
-	l := v.data.GetListValue()
-	if l == nil {
+	l, ok := v.data.Kind.(*SliceJsonValKind)
+	if !ok {
 		return 0
 	}
-	return len(l.Values)
+	return len(l.val)
 }
 
 func (v *ValueJson) String() string {
@@ -192,56 +232,56 @@ func (v *ValueJson) String() string {
 
 func (v *ValueJson) Bytes() []byte {
 	switch realVal := v.data.Kind.(type) {
-	case *structpb.Value_BoolValue:
-		return []byte(ToStr(realVal.BoolValue))
-	case *structpb.Value_NullValue:
-		return []byte("")
-	case *structpb.Value_NumberValue:
-		return []byte(ToStr(realVal.NumberValue))
-	case *structpb.Value_StringValue:
-		return []byte(realVal.StringValue)
-
-	case *structpb.Value_ListValue, *structpb.Value_StructValue:
+	case *BoolJsonValKind:
+		return []byte(ToStr(realVal.val))
+	case *NullJsonValKind:
+		return []byte("null")
+	case *NumberJsonValKind:
+		return []byte(realVal.val)
+	case *StrJsonValKind:
+		return []byte(realVal.val)
+	case *MapJsonValKind, *SliceJsonValKind:
 		jsBytes, err := v.data.MarshalJSON()
 		if err != nil {
+			Debugf("MapJsonValKind MarshalJSON find err:%v", err)
 			return []byte("")
 		}
 		return jsBytes
+	default:
 	}
 	return []byte("")
 }
 
 func (v *ValueJson) Int() (int, error) {
-	floatVal, ok := v.data.GetKind().(*structpb.Value_NumberValue)
+	numberVal, ok := v.data.Kind.(*NumberJsonValKind)
 	if !ok {
 		return 0, fmt.Errorf("%v is not number", v.data)
 	}
-	intVal, _ := ToInt(floatVal.NumberValue)
-	return intVal, nil
+	return ToInt(numberVal.val)
 }
 
 func (v *ValueJson) Float64() (float64, error) {
-	floatVal, ok := v.data.GetKind().(*structpb.Value_NumberValue)
+	floatVal, ok := v.data.Kind.(*NumberJsonValKind)
 	if !ok {
 		return 0, fmt.Errorf("%v is not number", v.data)
 	}
-	return floatVal.NumberValue, nil
+	return ToFloat64(floatVal.val)
 }
 
 func (v *ValueJson) Bool() (bool, error) {
-	boolVal, ok := v.data.GetKind().(*structpb.Value_BoolValue)
+	boolVal, ok := v.data.Kind.(*BoolJsonValKind)
 	if !ok {
 		return false, fmt.Errorf("%v is not bool", v.data)
 	}
-	return boolVal.BoolValue, nil
+	return boolVal.val, nil
 }
 
 func (v *ValueJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) error {
-	l := v.data.GetListValue()
+	l := v.data.Kind.(*SliceJsonValKind)
 	if l == nil {
 		return fmt.Errorf("%v is not slice", v.data)
 	}
-	for i, tpVal := range l.Values {
+	for i, tpVal := range l.val {
 		tpJs := &ValueJson{tpVal}
 		ret, err := f(i, tpJs)
 		if err != nil {
@@ -255,11 +295,11 @@ func (v *ValueJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) err
 }
 
 func (v *ValueJson) RangeMap(f func(key string, val MyJson2) (bool, error)) error {
-	mapVal := v.data.GetStructValue()
+	mapVal := v.data.Kind.(*MapJsonValKind)
 	if mapVal == nil {
 		return fmt.Errorf("%v is not map", v.data)
 	}
-	for key, tpVal := range mapVal.Fields {
+	for key, tpVal := range mapVal.val {
 		ret, err := f(key, &ValueJson{tpVal})
 		if err != nil {
 			return err
@@ -283,17 +323,17 @@ func (v *ValueJson) IsErrOrNil() bool {
 }
 
 func (v *ValueJson) IsSlice() bool {
-	if v.data.GetListValue() == nil {
-		return false
+	if _, ok := v.data.Kind.(*SliceJsonValKind); ok {
+		return true
 	}
-	return true
+	return false
 }
 
 func (v *ValueJson) IsMap() bool {
-	if v.data.GetStructValue() == nil {
-		return false
+	if _, ok := v.data.Kind.(*MapJsonValKind); ok {
+		return true
 	}
-	return true
+	return false
 }
 
 func ToStr(obj interface{}) string {
@@ -307,10 +347,11 @@ func ToStr(obj interface{}) string {
 
 func ToInt(intObj interface{}) (int, error) {
 	// 假定int == int64，运行在64位机
+	// Debugf("ToInt:%v", intObj)
 	switch v := intObj.(type) {
 	case sysjson.Number:
-		vint64, err := v.Int64()
-		return int(vint64), err
+		strVal := string(v)
+		return ToInt(strVal)
 	case int:
 		return v, nil
 	case int8:
