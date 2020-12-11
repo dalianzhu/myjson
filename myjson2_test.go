@@ -31,6 +31,7 @@ func TestMyJson2Simple(t *testing.T) {
 
 	js = NewJson(longJsonVal)
 	Debugf("TestMyJson2:%s", js)
+
 }
 
 func TestMyJson2Example(t *testing.T) {
@@ -267,12 +268,27 @@ func BenchmarkTestMyjsonSysJson(b *testing.B) {
 	}
 }
 
+func BenchmarkTestMyjsonSysJsonMarshal(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	tp := new(testLongJsonStruct)
+	json.Unmarshal(bsVal, tp)
+
+	for i := 0; i < b.N; i++ {
+		json.Marshal(tp)
+	}
+}
+
 func BenchmarkTestMyjson(b *testing.B) {
 	bsVal := []byte(longJsonVal)
 	for i := 0; i < b.N; i++ {
-		js := NewJson(bsVal)
-		if js.IsErrOrNil() {
-			b.Fail()
-		}
+		NewJson(bsVal)
+	}
+}
+
+func BenchmarkTestMyjsonMarshal(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	js := NewJson(bsVal)
+	for i := 0; i < b.N; i++ {
+		js.Bytes()
 	}
 }

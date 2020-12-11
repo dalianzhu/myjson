@@ -232,24 +232,24 @@ func (v *ValueJson) String() string {
 
 func (v *ValueJson) Bytes() []byte {
 	switch realVal := v.data.Kind.(type) {
-	case *BoolJsonValKind:
-		return []byte(ToStr(realVal.val))
-	case *NullJsonValKind:
-		return []byte("null")
-	case *NumberJsonValKind:
-		return []byte(realVal.val)
-	case *StrJsonValKind:
-		return []byte(realVal.val)
-	case *MapJsonValKind, *SliceJsonValKind:
+	case *SliceJsonValKind, *MapJsonValKind:
 		jsBytes, err := v.data.MarshalJSON()
 		if err != nil {
 			Debugf("MapJsonValKind MarshalJSON find err:%v", err)
 			return []byte("")
 		}
 		return jsBytes
-	default:
+	case *NullJsonValKind:
+		return []byte("null")
+	case *NumberJsonValKind:
+		return []byte(realVal.val)
+	case *StrJsonValKind:
+		return []byte(realVal.val)
+	case *BoolJsonValKind:
+		boolVal, _ := realVal.MarshalJSON()
+		return boolVal
 	}
-	return []byte("")
+	return nil
 }
 
 func (v *ValueJson) Int() (int, error) {

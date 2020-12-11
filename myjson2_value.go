@@ -192,7 +192,23 @@ func (m *MapJsonValKind) UnmarshalJSON(bytesVal []byte) error {
 }
 
 func (m *MapJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.val)
+	var b bytes.Buffer
+	b.WriteByte('{')
+	i := 0
+	for key, val := range m.val {
+		v, _ := val.MarshalJSON()
+		b.WriteByte('"')
+		b.WriteString(key)
+		b.WriteByte('"')
+		b.WriteByte(':')
+		b.Write(v)
+		i++
+		if i != len(m.val) {
+			b.WriteByte(',')
+		}
+	}
+	b.WriteByte('}')
+	return b.Bytes(), nil
 }
 
 type SliceJsonValKind struct {
@@ -204,7 +220,17 @@ func (s *SliceJsonValKind) UnmarshalJSON(bytesVal []byte) error {
 }
 
 func (s *SliceJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.val)
+	var b bytes.Buffer
+	b.WriteByte('[')
+	for i, val := range s.val {
+		v, _ := val.MarshalJSON()
+		b.Write(v)
+		if i != len(s.val)-1 {
+			b.WriteByte(',')
+		}
+	}
+	b.WriteByte(']')
+	return b.Bytes(), nil
 }
 
 // ------------------------------------------------
@@ -214,12 +240,11 @@ type NumberJsonValKind struct {
 }
 
 func (n *NumberJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(n.val)
+	return []byte(n.val), nil
 }
 
-func (n *NumberJsonValKind) UnmarshalJSON(bytes []byte) error {
-	Debugf("NumberJsonValKind UnmarshalJSON:%s", bytes)
-	return json.Unmarshal(bytes, &n.val)
+func (n *NumberJsonValKind) UnmarshalJSON(bytesVal []byte) error {
+	return json.Unmarshal(bytesVal, &n.val)
 }
 
 type StrJsonValKind struct {
@@ -227,7 +252,11 @@ type StrJsonValKind struct {
 }
 
 func (s *StrJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.val)
+	var b bytes.Buffer
+	b.WriteByte('"')
+	b.WriteString(s.val)
+	b.WriteByte('"')
+	return b.Bytes(), nil
 }
 
 func (s *StrJsonValKind) UnmarshalJSON(bytes []byte) error {
@@ -238,19 +267,27 @@ type BoolJsonValKind struct {
 	val bool
 }
 
+var TRUE = []byte("true")
+var FALSE = []byte("false")
+
 func (b *BoolJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(b.val)
+	if b.val {
+		return TRUE, nil
+	}
+	return FALSE, nil
 }
 
 func (b *BoolJsonValKind) UnmarshalJSON(bytes []byte) error {
 	return json.Unmarshal(bytes, &b.val)
 }
 
+var NULL = []byte("null")
+
 type NullJsonValKind struct {
 }
 
 func (n *NullJsonValKind) MarshalJSON() ([]byte, error) {
-	return []byte("null"), nil
+	return NULL, nil
 }
 
 func (n *NullJsonValKind) UnmarshalJSON([]byte) error {
