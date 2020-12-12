@@ -23,14 +23,22 @@ type testStruct struct {
 
 func TestMyJson2Simple(t *testing.T) {
 	IsDebug = true
-	jsStr := `
-{"key1":{"key2":"123"}, "key3":{}}
-`
-	js := NewJson(jsStr)
-	Debugf("TestMyJson2:%v", js)
+	as := assert.New(t)
+	// 	jsStr := `
+	// {"key1":{"key2":"123"}, "key3":{}}
+	// `
+	// 	js := NewJson(jsStr)
+	// 	Debugf("TestMyJson2:%v", js.Get("key1"))
 
-	js = NewJson(longJsonVal)
-	Debugf("TestMyJson2:%s", js)
+	// js = NewJson(longJsonVal)
+	// Debugf("TestMyJson2:%s", js)
+
+	jsStr := `{"Filters":[{"Name":"ServiceName","Values":["user_123"]}],"Limit":1024,"Offset":0}`
+	js := NewJson(jsStr)
+
+	limit, err := js.Get("Limit").Int()
+	as.Equal(1024, limit, "limit值为1024")
+	Debugf("err:%v, %s", err, js.String())
 }
 
 func TestMyJson2Example(t *testing.T) {
@@ -58,7 +66,9 @@ func TestMyJson2Float(t *testing.T) {
 	as := assert.New(t)
 	js := NewJson(`{"data":{"err":true},"env":{"float":123.321}}`)
 	fmt.Println(js.String())
-	intVal, err := js.Get("env").Get("float").Int()
+	floatJs := js.Get("env").Get("float")
+
+	intVal, err := floatJs.Int()
 	if err != nil {
 		t.Error(err)
 		return
@@ -234,6 +244,12 @@ func TestMyJson2(t *testing.T) {
 	js = NewJson(`asdf;vjaspoipewqurj`)
 	as.Equal(true, js.IsErrOrNil(), fmt.Sprintf("json test is error:%v", js))
 
+	js = NewJson(`{"key":123, "val":[1,2,3,4],}`)
+	as.Equal(true, js.IsErrOrNil(), fmt.Sprintf("json test is error:%v", js))
+
+	js = NewJson(`{"key":123, "val":[1,2,3,4]`)
+	as.Equal(true, js.IsErrOrNil(), fmt.Sprintf("json test is error:%v", js))
+
 	js = NewJson(`null`)
 	as.Equal(false, js.IsErrOrNil(), "json test null val is error")
 
@@ -270,9 +286,26 @@ func BenchmarkTestMyjsonSysJson(b *testing.B) {
 func BenchmarkTestMyjson(b *testing.B) {
 	bsVal := []byte(longJsonVal)
 	for i := 0; i < b.N; i++ {
-		js := NewJson(bsVal)
-		if js.IsErrOrNil() {
+		NewJson(bsVal)
+	}
+}
+
+func BenchmarkTestMyjsonSysJsonMarshal(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	tp := new(testLongJsonStruct)
+	json.Unmarshal(bsVal, tp)
+	for i := 0; i < b.N; i++ {
+		_, err := json.Marshal(tp)
+		if err != nil {
 			b.Fail()
 		}
+	}
+}
+
+func BenchmarkTestMyjsonMarshal(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	js := NewJson(bsVal)
+	for i := 0; i < b.N; i++ {
+		js.Bytes()
 	}
 }

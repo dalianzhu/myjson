@@ -3,17 +3,124 @@ package myjson
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 )
 
-type JsonVal struct {
-	Kind JsonValKind
+var bytesTrue = []byte("true")
+var bytesFalse = []byte("false")
+
+func objToJsonStr(i interface{}) []byte {
+	Debugf("objToJsonStr:%v", i)
+	switch v := i.(type) {
+	case string:
+		var b bytes.Buffer
+		b.WriteByte('"')
+		b.WriteString(v)
+		b.WriteByte('"')
+		return b.Bytes()
+	case json.Number:
+		return []byte(v)
+
+	case *nullWrap:
+		return bytesNull
+
+	case bool:
+		if v {
+			return bytesTrue
+		}
+		return bytesFalse
+	case map[string]interface{}:
+		var b bytes.Buffer
+		b.WriteByte('{')
+		i := 0
+		for key, mapVal := range v {
+			i++
+			b.WriteByte('"')
+			b.WriteString(key)
+			b.WriteByte('"')
+			b.WriteByte(':')
+			b.Write(objToJsonStr(mapVal))
+			if i != len(v) {
+				b.WriteByte(',')
+			}
+		}
+		b.WriteByte('}')
+		return b.Bytes()
+	case *sliceWrap:
+		var b bytes.Buffer
+		b.WriteByte('[')
+		for i, val := range v.sliceData {
+			b.Write(objToJsonStr(val))
+			if i != len(v.sliceData)-1 {
+				b.WriteByte(',')
+			}
+		}
+		b.WriteByte(']')
+		return b.Bytes()
+	}
+	return nil
 }
 
-func decodeSlice(dec *json.Decoder, j *JsonVal) error {
-	kind := &SliceJsonValKind{make([]*JsonVal, 0, 10)}
-	j.Kind = kind
+type sliceWrap struct {
+	sliceData []interface{}
+}
+
+func (s *sliceWrap) MarshalJSON() ([]byte, error) {
+	// Debugf("sliceWrap MarshalJson:")
+	// return json.Marshal(s.sliceData)
+	return objToJsonStr(s), nil
+}
+
+type nullWrap struct {
+}
+
+var globalNullWrap = &nullWrap{}
+
+var bytesNull = []byte("null")
+
+func (s *nullWrap) MarshalJSON() ([]byte, error) {
+	Debugf("nullWrap MarshalJson:")
+	return bytesNull, nil
+}
+
+var StopIter = errors.New("iter stop")
+
+func getDecodeVal(dec *json.Decoder, t json.Token, op func(interface{})) error {
+	switch v := t.(type) {
+	default:
+		op(t)
+	case nil:
+		op(globalNullWrap)
+	// 还可能是一个deli
+	case json.Delim:
+		// 如果是一个map，则转入下轮
+		deli := v.String()
+		if deli == "{" {
+			mapVal := make(map[string]interface{}, 10)
+			err := decodeMap(dec, mapVal)
+			if err != nil {
+				return err
+			}
+			op(mapVal)
+		} else if deli == "[" {
+			sliceVal := &sliceWrap{}
+			sliceVal.sliceData = make([]interface{}, 0, 10)
+			err := decodeSlice(dec, sliceVal)
+			if err != nil {
+				return err
+			}
+			op(sliceVal)
+		} else if deli == "]" || deli == "}" {
+			return StopIter
+		}
+	}
+	return nil
+}
+
+func decodeSlice(dec *json.Decoder, sliceVal *sliceWrap) error {
+	Debugf("decodeSlice Run")
 	for {
 		// slice 则只有值
 		t, err := dec.Token()
@@ -24,44 +131,22 @@ func decodeSlice(dec *json.Decoder, j *JsonVal) error {
 			return err
 		}
 		// 此时val有两种情况，一种是普通值
-		switch v := t.(type) {
-		case string:
-			kind.val = append(kind.val, &JsonVal{&StrJsonValKind{v}})
-		case bool:
-			kind.val = append(kind.val, &JsonVal{&BoolJsonValKind{v}})
-		case json.Number:
-			kind.val = append(kind.val, &JsonVal{&NumberJsonValKind{v}})
-		case nil:
-			kind.val = append(kind.val, &JsonVal{&NullJsonValKind{}})
-		// 还可能是一个deli
-		case json.Delim:
-			// 如果是一个map，则转入下轮
-			deli := v.String()
-			if deli == "{" {
-				newJsonVal := &JsonVal{}
-				err = decodeMap(dec, newJsonVal)
-				if err != nil {
-					return err
-				}
-				kind.val = append(kind.val, newJsonVal)
-			} else if deli == "[" {
-				newJsonVal := &JsonVal{}
-				err = decodeSlice(dec, newJsonVal)
-				if err != nil {
-					return err
-				}
-				kind.val = append(kind.val, newJsonVal)
-			} else if deli == "]" {
-				return nil
-			}
+		err = getDecodeVal(dec, t, func(i interface{}) {
+			sliceVal.sliceData = append(sliceVal.sliceData, i)
+			Debugf("slice append:%v", i)
+		})
+		if errors.Is(err, StopIter) {
+			// 正常退出，否则json不正确
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
-	return nil
+	return fmt.Errorf("json is error")
 }
 
-func decodeMap(dec *json.Decoder, j *JsonVal) error {
-	kind := &MapJsonValKind{make(map[string]*JsonVal, 10)}
-	j.Kind = kind
+func decodeMap(dec *json.Decoder, m map[string]interface{}) error {
 	isSetKey := false
 	key := ""
 	//  map 轮换key，val
@@ -78,7 +163,7 @@ func decodeMap(dec *json.Decoder, j *JsonVal) error {
 
 			v, ok := t.(json.Delim)
 			if ok && v.String() == "}" {
-				break
+				return nil
 			}
 
 			key = t.(string)
@@ -93,180 +178,19 @@ func decodeMap(dec *json.Decoder, j *JsonVal) error {
 			if err != nil {
 				return err
 			}
-			// 此时val有两种情况，一种是普通值
-			switch v := t.(type) {
-			case string:
-				kind.val[key] = &JsonVal{&StrJsonValKind{v}}
-			case bool:
-				kind.val[key] = &JsonVal{&BoolJsonValKind{v}}
-			case json.Number:
-				kind.val[key] = &JsonVal{&NumberJsonValKind{v}}
-			case nil:
-				kind.val[key] = &JsonVal{&NullJsonValKind{}}
-			// 还可能是一个deli
-			case json.Delim:
-				deli := v.String()
-				// 如果是一个map，则转入下轮
-				if deli == "{" {
-					newJsonVal := &JsonVal{}
-					err = decodeMap(dec, newJsonVal)
-					if err != nil {
-						return err
-					}
-					kind.val[key] = newJsonVal
-				} else if deli == "[" {
-					newJsonVal := &JsonVal{}
-					err = decodeSlice(dec, newJsonVal)
-					if err != nil {
-						return err
-					}
-					kind.val[key] = newJsonVal
-				} else if deli == "}" {
-					return nil
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (j *JsonVal) UnmarshalJSON(bytesVal []byte) (err error) {
-	dec := json.NewDecoder(bytes.NewReader(bytesVal))
-	dec.UseNumber()
-	for {
-		t, err := dec.Token()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		// 此时val有两种情况，一种是普通值
-		switch v := t.(type) {
-		case string:
-			j.Kind = &JsonVal{&StrJsonValKind{v}}
-		case bool:
-			j.Kind = &JsonVal{&BoolJsonValKind{v}}
-		case json.Number:
-			j.Kind = &JsonVal{&NumberJsonValKind{v}}
-		case nil:
-			j.Kind = &JsonVal{&NullJsonValKind{}}
-		// 还可能是一个deli
-		case json.Delim:
-			// 如果是一个map，则转入下轮
-			deli := v.String()
-			if deli == "{" {
-				err = decodeMap(dec, j)
-				if err != nil {
-					return err
-				}
-			} else if deli == "[" {
-				err = decodeSlice(dec, j)
-				if err != nil {
-					return err
-				}
-			} else if deli == "]" || deli == "}" {
+			err = getDecodeVal(dec, t, func(i interface{}) {
+				m[key] = i
+				Debugf("map set %v:%v", key, i)
+			})
+			// 本个map发现了 }，处理完了，正常退出
+			if errors.Is(err, StopIter) {
 				return nil
 			}
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return nil
-}
 
-func (j *JsonVal) MarshalJSON() ([]byte, error) {
-	return j.Kind.MarshalJSON()
-}
-
-type JsonValKind interface {
-	MarshalJSON() ([]byte, error)
-	UnmarshalJSON([]byte) error
-}
-
-type MapJsonValKind struct {
-	val map[string]*JsonVal
-}
-
-func (m *MapJsonValKind) UnmarshalJSON(bytesVal []byte) error {
-	return nil
-}
-
-func (m *MapJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.val)
-}
-
-type SliceJsonValKind struct {
-	val []*JsonVal
-}
-
-func (s *SliceJsonValKind) UnmarshalJSON(bytesVal []byte) error {
-	return nil
-}
-
-func (s *SliceJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.val)
-}
-
-// ------------------------------------------------
-
-type NumberJsonValKind struct {
-	val json.Number
-}
-
-func (n *NumberJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(n.val)
-}
-
-func (n *NumberJsonValKind) UnmarshalJSON(bytes []byte) error {
-	Debugf("NumberJsonValKind UnmarshalJSON:%s", bytes)
-	return json.Unmarshal(bytes, &n.val)
-}
-
-type StrJsonValKind struct {
-	val string
-}
-
-func (s *StrJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.val)
-}
-
-func (s *StrJsonValKind) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &s.val)
-}
-
-type BoolJsonValKind struct {
-	val bool
-}
-
-func (b *BoolJsonValKind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(b.val)
-}
-
-func (b *BoolJsonValKind) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &b.val)
-}
-
-type NullJsonValKind struct {
-}
-
-func (n *NullJsonValKind) MarshalJSON() ([]byte, error) {
-	return []byte("null"), nil
-}
-
-func (n *NullJsonValKind) UnmarshalJSON([]byte) error {
-	return nil
-}
-
-func toJsonValKind(i interface{}) (JsonValKind, error) {
-	switch v := i.(type) {
-	case string:
-		return &StrJsonValKind{v}, nil
-	case bool:
-		return &BoolJsonValKind{v}, nil
-	case int, int32, int64, uint, uint32, uint64, float32, float64:
-		return &NumberJsonValKind{json.Number(ToStr(v))}, nil
-	case nil:
-		return &NullJsonValKind{}, nil
-	}
-	return nil, fmt.Errorf("%v is not json", i)
+	return fmt.Errorf("json is error")
 }

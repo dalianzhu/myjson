@@ -1,10 +1,12 @@
 package myjson
 
 import (
+	"bytes"
 	"encoding/json"
 	sysjson "encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"reflect"
@@ -49,24 +51,21 @@ type MyJson2 interface {
 }
 
 func NewJsonFromBytes(bytesVal []byte) MyJson2 {
-	val := &JsonVal{}
+	val := &ValueJson{}
 	err := val.UnmarshalJSON(bytesVal)
 	if err != nil {
-		return &NilJson{}
+		return &NilOrErrJson{}
 	}
-	v := &ValueJson{val}
-	return v
+	return val
 }
 
 func NewJson(val interface{}) MyJson2 {
 	switch v := val.(type) {
-	case string:
-		val := NewJsonFromBytes([]byte(v))
-		Debugf("NewJson1:%v", val)
-		return val
 	case []byte:
 		val := NewJsonFromBytes(v)
-		Debugf("NewJson2:%v", val)
+		return val
+	case string:
+		val := NewJsonFromBytes([]byte(v))
 		return val
 	}
 
@@ -76,7 +75,7 @@ func NewJson(val interface{}) MyJson2 {
 		bytesVal, err := json.Marshal(val)
 		if err != nil {
 			// errstr := fmt.Sprintf("js解析失败：%v", err)
-			return &NilJson{}
+			return &NilOrErrJson{}
 		}
 		return NewJsonFromBytes(bytesVal)
 
@@ -85,20 +84,20 @@ func NewJson(val interface{}) MyJson2 {
 			bytesVal, err := json.Marshal(val)
 			if err != nil {
 				// errstr := fmt.Sprintf("js解析失败：%v", err)
-				return &NilJson{}
+				return &NilOrErrJson{}
 			}
 			return NewJsonFromBytes(bytesVal)
 		}
 	}
-	return &NilJson{}
+	return &NilOrErrJson{}
 }
 
 type ValueJson struct {
-	data *JsonVal
+	data interface{}
 }
 
 func (v *ValueJson) PbValue() *structpb.Value {
-	bytesVal, err := v.data.Kind.MarshalJSON()
+	bytesVal, err := json.Marshal(v.data)
 	if err != nil {
 		return nil
 	}
@@ -113,19 +112,20 @@ func (v *ValueJson) PbValue() *structpb.Value {
 
 func (v *ValueJson) Get(key string) MyJson2 {
 	if v.IsErrOrNil() {
-		return new(NilJson)
+		return new(NilOrErrJson)
 	}
 
-	structVal, ok := v.data.Kind.(*MapJsonValKind)
+	structVal, ok := v.data.(map[string]interface{})
 	if !ok {
-		return new(NilJson)
+		Debugf("ValueJson Get:%v", reflect.TypeOf(v.data))
+		return new(NilOrErrJson)
 	}
 
-	jsonValData, ok := structVal.val[key]
+	jsonValData, ok := structVal[key]
 	if ok {
 		return &ValueJson{jsonValData}
 	}
-	return new(NilJson)
+	return new(NilOrErrJson)
 }
 
 func iterToPbValue(val interface{}) *structpb.Value {
@@ -142,19 +142,24 @@ func iterToPbValue(val interface{}) *structpb.Value {
 	return structpb.NewNullValue()
 }
 
+func valueToJson(val interface{}) interface{} {
+	v, ok := val.(*ValueJson)
+	if ok {
+		return v.data
+	}
+	return val
+}
+
 func (v *ValueJson) Set(key string, val interface{}) error {
 	if v.IsErrOrNil() {
 		return fmt.Errorf("json is nil")
 	}
-	structVal, ok := v.data.Kind.(*MapJsonValKind)
+	structVal, ok := v.data.(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("json is not map json")
 	}
-	jsonValData, err := toJsonValKind(val)
-	if err != nil {
-		return nil
-	}
-	structVal.val[key] = &JsonVal{jsonValData}
+
+	structVal[key] = val
 	return nil
 }
 
@@ -162,68 +167,62 @@ func (v *ValueJson) Rm(key string) {
 	if v.IsErrOrNil() {
 		return
 	}
-	structVal, ok := v.data.Kind.(*MapJsonValKind)
+	structVal, ok := v.data.(map[string]interface{})
 	if !ok {
 		return
 	}
-	delete(structVal.val, key)
+	delete(structVal, key)
 }
 
 func (v *ValueJson) Index(i int) MyJson2 {
-	listVal, ok := v.data.Kind.(*SliceJsonValKind)
+	listVal, ok := v.data.(*sliceWrap)
 	if !ok {
-		return &NilJson{}
+		return &NilOrErrJson{}
 	}
 
-	if i >= len(listVal.val) {
-		return new(NilJson)
+	if i >= len(listVal.sliceData) {
+		return new(NilOrErrJson)
 	}
 
-	valueData := listVal.val[i]
+	valueData := listVal.sliceData[i]
 	return &ValueJson{valueData}
 }
 
-func insertValue(sliceBody []*JsonVal, index int, val *JsonVal) []*JsonVal {
+func insertValue(sliceBody *sliceWrap, index int, val interface{}) {
 	// 把尾巴弄出来
-	rear := append([]*JsonVal{}, sliceBody[index:]...)
-	tpSlice := append(sliceBody[0:index], val)
-	return append(tpSlice, rear...)
+	rear := append([]interface{}{}, sliceBody.sliceData[index:]...)
+	tpSlice := append(sliceBody.sliceData[0:index], val)
+	sliceBody.sliceData = append(tpSlice, rear...)
 }
 
 func (v *ValueJson) Insert(i int, val interface{}) (MyJson2, error) {
-	listVal, ok := v.data.Kind.(*SliceJsonValKind)
+	listVal, ok := v.data.(*sliceWrap)
 	if !ok {
-		return &NilJson{}, fmt.Errorf("json is not slice json")
+		return &NilOrErrJson{}, fmt.Errorf("json is not slice json")
 	}
 
-	jsonValKind, err := toJsonValKind(val)
-	if err != nil {
-		return v, err
-	}
-	listVal.val = insertValue(listVal.val, i, &JsonVal{jsonValKind})
+	tpValue := valueToJson(val)
+	insertValue(listVal, i, tpValue)
 	return v, nil
 }
 
 func (v *ValueJson) Append(val interface{}) (MyJson2, error) {
-	l, ok := v.data.Kind.(*SliceJsonValKind)
+	l, ok := v.data.(*sliceWrap)
 	if !ok {
-		return &NilJson{}, fmt.Errorf("json is not slice json")
+		return &NilOrErrJson{}, fmt.Errorf("json is not slice json")
 	}
-	jsonValKind, err := toJsonValKind(val)
-	if err != nil {
-		return v, err
-	}
+	tpValue := valueToJson(val)
 	// Debugf("append:%v\n", jsonValKind)
-	l.val = append(l.val, &JsonVal{jsonValKind})
+	l.sliceData = append(l.sliceData, tpValue)
 	return v, nil
 }
 
 func (v *ValueJson) Len() int {
-	l, ok := v.data.Kind.(*SliceJsonValKind)
+	l, ok := v.data.(*sliceWrap)
 	if !ok {
 		return 0
 	}
-	return len(l.val)
+	return len(l.sliceData)
 }
 
 func (v *ValueJson) String() string {
@@ -231,57 +230,34 @@ func (v *ValueJson) String() string {
 }
 
 func (v *ValueJson) Bytes() []byte {
-	switch realVal := v.data.Kind.(type) {
-	case *BoolJsonValKind:
-		return []byte(ToStr(realVal.val))
-	case *NullJsonValKind:
-		return []byte("null")
-	case *NumberJsonValKind:
-		return []byte(realVal.val)
-	case *StrJsonValKind:
-		return []byte(realVal.val)
-	case *MapJsonValKind, *SliceJsonValKind:
-		jsBytes, err := v.data.MarshalJSON()
-		if err != nil {
-			Debugf("MapJsonValKind MarshalJSON find err:%v", err)
-			return []byte("")
-		}
-		return jsBytes
+	switch v.data.(type) {
+	case *sliceWrap, map[string]interface{}:
+		ret, _ := v.MarshalJSON()
+		return ret
 	default:
+		return []byte(ToStr(v.data))
 	}
-	return []byte("")
+	return nil
 }
 
 func (v *ValueJson) Int() (int, error) {
-	numberVal, ok := v.data.Kind.(*NumberJsonValKind)
-	if !ok {
-		return 0, fmt.Errorf("%v is not number", v.data)
-	}
-	return ToInt(numberVal.val)
+	return ToInt(v.data)
 }
 
 func (v *ValueJson) Float64() (float64, error) {
-	floatVal, ok := v.data.Kind.(*NumberJsonValKind)
-	if !ok {
-		return 0, fmt.Errorf("%v is not number", v.data)
-	}
-	return ToFloat64(floatVal.val)
+	return ToFloat64(v.data)
 }
 
 func (v *ValueJson) Bool() (bool, error) {
-	boolVal, ok := v.data.Kind.(*BoolJsonValKind)
-	if !ok {
-		return false, fmt.Errorf("%v is not bool", v.data)
-	}
-	return boolVal.val, nil
+	return ToBool(v.data)
 }
 
 func (v *ValueJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) error {
-	l := v.data.Kind.(*SliceJsonValKind)
+	l := v.data.(*sliceWrap)
 	if l == nil {
 		return fmt.Errorf("%v is not slice", v.data)
 	}
-	for i, tpVal := range l.val {
+	for i, tpVal := range l.sliceData {
 		tpJs := &ValueJson{tpVal}
 		ret, err := f(i, tpJs)
 		if err != nil {
@@ -295,11 +271,11 @@ func (v *ValueJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) err
 }
 
 func (v *ValueJson) RangeMap(f func(key string, val MyJson2) (bool, error)) error {
-	mapVal := v.data.Kind.(*MapJsonValKind)
+	mapVal := v.data.(map[string]interface{})
 	if mapVal == nil {
 		return fmt.Errorf("%v is not map", v.data)
 	}
-	for key, tpVal := range mapVal.val {
+	for key, tpVal := range mapVal {
 		ret, err := f(key, &ValueJson{tpVal})
 		if err != nil {
 			return err
@@ -312,10 +288,14 @@ func (v *ValueJson) RangeMap(f func(key string, val MyJson2) (bool, error)) erro
 }
 
 func (v *ValueJson) Clone() MyJson2 {
-	return NewJson(v.String())
+	return NewJson(v.Bytes())
 }
 
 func (v *ValueJson) IsErrOrNil() bool {
+	_, ok := v.data.(*NilOrErrJson)
+	if ok {
+		return true
+	}
 	if v.data == nil {
 		return true
 	}
@@ -323,14 +303,14 @@ func (v *ValueJson) IsErrOrNil() bool {
 }
 
 func (v *ValueJson) IsSlice() bool {
-	if _, ok := v.data.Kind.(*SliceJsonValKind); ok {
+	if _, ok := v.data.(*sliceWrap); ok {
 		return true
 	}
 	return false
 }
 
 func (v *ValueJson) IsMap() bool {
-	if _, ok := v.data.Kind.(*MapJsonValKind); ok {
+	if _, ok := v.data.(map[string]interface{}); ok {
 		return true
 	}
 	return false
@@ -425,5 +405,58 @@ func ToBool(item interface{}) (bool, error) {
 			return false, fmt.Errorf("%v cannot convert to bool", item)
 		}
 		return boolValue, nil
+	}
+}
+
+func (v *ValueJson) MarshalJSON() ([]byte, error) {
+	// return json.Marshal(v.data)
+	ret := objToJsonStr(v.data)
+	Debugf("ValueJson Marshal:%v", ret)
+	return ret, nil
+}
+
+func (v *ValueJson) UnmarshalJSON(bytesVal []byte) error {
+	Debugf("ValueJson UnmarshalJSON run")
+	dec := json.NewDecoder(bytes.NewReader(bytesVal))
+	dec.UseNumber()
+	for {
+		t, err := dec.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		Debugf("ValueJson UnmarshalJSON token: %T %v", t, t)
+		// 此时val有两种情况，一种是普通值
+		switch typeVal := t.(type) {
+		default:
+			v.data = typeVal
+		case nil:
+			v.data = globalNullWrap
+		// 还可能是一个deli
+		case json.Delim:
+			// 如果是一个map，则转入下轮
+			deli := typeVal.String()
+			if deli == "{" {
+				Debugf("ValueJson UnmarshalJSON map case")
+				m := make(map[string]interface{}, 10)
+				err = decodeMap(dec, m)
+				if err != nil {
+					return err
+				}
+				v.data = m
+			} else if deli == "[" {
+				sliceVal := &sliceWrap{}
+				sliceVal.sliceData = make([]interface{}, 0, 10)
+				err = decodeSlice(dec, sliceVal)
+				if err != nil {
+					return err
+				}
+				v.data = sliceVal
+			} else if deli == "]" || deli == "}" {
+				return nil
+			}
+		}
 	}
 }
