@@ -11,11 +11,12 @@ func TestMapJsonVal_UnmarshalJSON(t *testing.T) {
 "sub":
 [1,2,3,   12341234125123412357890987]},null,1,true,
 false]`
-	var m = &JsonVal{}
+	var m = &ValueJson{}
 	err := json.Unmarshal([]byte(js2), m)
 	if err != nil {
 		t.Error(err)
 	}
+	Debugf("Unmarshal json:%v", m.data)
 
 	v, err := json.Marshal(m)
 	log.Printf("mapVal:%s, %v\n", v, err)

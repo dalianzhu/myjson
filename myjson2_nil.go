@@ -6,92 +6,93 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-type NilJson struct {
+// NilOrErrJson 用来做占位，不等于null，而是真正的空内存
+type NilOrErrJson struct {
 }
 
-func (n *NilJson) MarshalJSON() ([]byte, error) {
-	return []byte("null"), nil
+func (n *NilOrErrJson) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("json is nil pointer")
 }
 
-func (n *NilJson) UnmarshalJSON(bytes []byte) error {
+func (n *NilOrErrJson) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (n *NilJson) GetValue() interface{} {
-	panic("implement me")
-}
-
-func (n *NilJson) Get(key string) MyJson2 {
-	return new(NilJson)
-}
-
-func (n *NilJson) Set(key string, val interface{}) error {
+func (n *NilOrErrJson) GetValue() interface{} {
 	return nil
 }
 
-func (n *NilJson) PbValue() *structpb.Value {
+func (n *NilOrErrJson) Get(key string) MyJson2 {
+	return new(NilOrErrJson)
+}
+
+func (n *NilOrErrJson) Set(key string, val interface{}) error {
 	return nil
 }
 
-func (n *NilJson) Rm(key string) {
+func (n *NilOrErrJson) PbValue() *structpb.Value {
+	return nil
 }
 
-func (n *NilJson) Index(i int) MyJson2 {
-	return new(NilJson)
+func (n *NilOrErrJson) Rm(key string) {
 }
 
-func (n *NilJson) Insert(i int, val interface{}) (MyJson2, error) {
-	return new(NilJson), nil
+func (n *NilOrErrJson) Index(i int) MyJson2 {
+	return new(NilOrErrJson)
 }
 
-func (n *NilJson) Append(val interface{}) (MyJson2, error) {
-	return new(NilJson), nil
+func (n *NilOrErrJson) Insert(i int, val interface{}) (MyJson2, error) {
+	return new(NilOrErrJson), nil
 }
 
-func (n *NilJson) Len() int {
+func (n *NilOrErrJson) Append(val interface{}) (MyJson2, error) {
+	return new(NilOrErrJson), nil
+}
+
+func (n *NilOrErrJson) Len() int {
 	return 0
 }
 
-func (n *NilJson) String() string {
+func (n *NilOrErrJson) String() string {
 	return ""
 }
 
-func (n *NilJson) Bytes() []byte {
+func (n *NilOrErrJson) Bytes() []byte {
 	return []byte("")
 }
 
-func (n *NilJson) Int() (int, error) {
+func (n *NilOrErrJson) Int() (int, error) {
 	return 0, fmt.Errorf("json is nil")
 }
 
-func (n *NilJson) Float64() (float64, error) {
+func (n *NilOrErrJson) Float64() (float64, error) {
 	return 0, fmt.Errorf("json is nil")
 }
 
-func (n *NilJson) Bool() (bool, error) {
+func (n *NilOrErrJson) Bool() (bool, error) {
 	return false, fmt.Errorf("json is nil")
 }
 
-func (n *NilJson) Clone() MyJson2 {
-	return &NilJson{}
+func (n *NilOrErrJson) Clone() MyJson2 {
+	return &NilOrErrJson{}
 }
 
-func (n *NilJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) error {
+func (n *NilOrErrJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) error {
 	return fmt.Errorf("json is nil")
 }
 
-func (n *NilJson) RangeMap(f func(key string, val MyJson2) (bool, error)) error {
+func (n *NilOrErrJson) RangeMap(f func(key string, val MyJson2) (bool, error)) error {
 	return fmt.Errorf("json is nil")
 }
 
-func (n *NilJson) IsErrOrNil() bool {
+func (n *NilOrErrJson) IsErrOrNil() bool {
 	return true
 }
 
-func (n *NilJson) IsSlice() bool {
+func (n *NilOrErrJson) IsSlice() bool {
 	return false
 }
 
-func (n *NilJson) IsMap() bool {
+func (n *NilOrErrJson) IsMap() bool {
 	return false
 }
