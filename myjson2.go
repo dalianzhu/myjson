@@ -32,6 +32,7 @@ type MyJson2 interface {
 	Insert(i int, val interface{}) (MyJson2, error)
 	Append(val interface{}) (MyJson2, error)
 
+	GetValue() interface{}
 	Len() int
 	String() string
 	Bytes() []byte
@@ -94,6 +95,10 @@ func NewJson(val interface{}) MyJson2 {
 
 type ValueJson struct {
 	data interface{}
+}
+
+func (v *ValueJson) GetValue() interface{} {
+	return v.data
 }
 
 func (v *ValueJson) PbValue() *structpb.Value {
@@ -318,6 +323,10 @@ func (v *ValueJson) IsMap() bool {
 
 func ToStr(obj interface{}) string {
 	switch v := obj.(type) {
+	case *nullWrap:
+		return string(bytesNull)
+	case *sliceWrap:
+		return string(objToJsonStr(v))
 	case []byte:
 		return string(v)
 	default:

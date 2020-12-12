@@ -60,7 +60,7 @@ func objToJsonStr(i interface{}) []byte {
 		b.WriteByte(']')
 		return b.Bytes()
 	}
-	return nil
+	return []byte("")
 }
 
 type sliceWrap struct {
