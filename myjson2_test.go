@@ -285,6 +285,11 @@ func TestMyJson2(t *testing.T) {
 	as.Equal(false, js.IsErrOrNil(), "测试 isNull2")
 	as.Equal(true, js.IsNull(), "测试 isNull2")
 
+	js = NewJson("")
+	Debugf("empty string is:%v,%v", js.IsErrOrNil(), js.IsNull())
+	as.Equal(true, js.IsErrOrNil(), "测试 isNull3")
+	as.Equal(false, js.IsNull(), "测试 isNull3")
+
 	js = NewJson(`{"null": null}`)
 	as.Equal(true, js.IsMap(), "测试 isMap1")
 
