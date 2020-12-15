@@ -329,6 +329,8 @@ func ToStr(obj interface{}) string {
 		return string(objToJsonStr(v))
 	case []byte:
 		return string(v)
+	case MyJson2:
+		return v.String()
 	default:
 		return fmt.Sprintf("%v", obj)
 	}
@@ -380,6 +382,8 @@ func ToInt(intObj interface{}) (int, error) {
 		if intv, err := strconv.Atoi(strv); err == nil {
 			return intv, nil
 		}
+	case MyJson2:
+		return v.Int()
 	}
 	return 0, fmt.Errorf("%v cannot convert to int", intObj)
 }
@@ -399,15 +403,18 @@ func ToFloat64(item interface{}) (float64, error) {
 		if floatNum, err := strconv.ParseFloat(v, 64); err == nil {
 			return floatNum, nil
 		}
+	case MyJson2:
+		return v.Float64()
 	}
 	return 0, fmt.Errorf("%v cannot convert to float", item)
 }
 
 func ToBool(item interface{}) (bool, error) {
-
 	switch v := item.(type) {
 	case bool:
 		return v, nil
+	case MyJson2:
+		return v.Bool()
 	default:
 		boolValue, err := strconv.ParseBool(ToStr(item))
 		if err != nil {

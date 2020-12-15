@@ -39,6 +39,10 @@ func TestMyJson2Simple(t *testing.T) {
 	limit, err := js.Get("Limit").Int()
 	as.Equal(1024, limit, "limit值为1024")
 	Debugf("err:%v, %s", err, js.String())
+
+	limit, err = ToInt(js.Get("Limit"))
+	as.Equal(1024, limit, "limit值为1024")
+	Debugf("err:%v, %s", err, js.String())
 }
 
 func TestMyJson2Example(t *testing.T) {
