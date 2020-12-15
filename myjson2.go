@@ -47,6 +47,7 @@ type MyJson2 interface {
 	IsErrOrNil() bool
 	IsSlice() bool
 	IsMap() bool
+	IsNull() bool
 
 	PbValue() *structpb.Value
 }
@@ -242,7 +243,6 @@ func (v *ValueJson) Bytes() []byte {
 	default:
 		return []byte(ToStr(v.data))
 	}
-	return nil
 }
 
 func (v *ValueJson) Int() (int, error) {
@@ -258,8 +258,8 @@ func (v *ValueJson) Bool() (bool, error) {
 }
 
 func (v *ValueJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) error {
-	l := v.data.(*sliceWrap)
-	if l == nil {
+	l, ok := v.data.(*sliceWrap)
+	if !ok {
 		return fmt.Errorf("%v is not slice", v.data)
 	}
 	for i, tpVal := range l.sliceData {
@@ -276,8 +276,8 @@ func (v *ValueJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) err
 }
 
 func (v *ValueJson) RangeMap(f func(key string, val MyJson2) (bool, error)) error {
-	mapVal := v.data.(map[string]interface{})
-	if mapVal == nil {
+	mapVal, ok := v.data.(map[string]interface{})
+	if !ok {
 		return fmt.Errorf("%v is not map", v.data)
 	}
 	for key, tpVal := range mapVal {
@@ -316,6 +316,14 @@ func (v *ValueJson) IsSlice() bool {
 
 func (v *ValueJson) IsMap() bool {
 	if _, ok := v.data.(map[string]interface{}); ok {
+		return true
+	}
+	return false
+}
+
+func (v *ValueJson) IsNull() bool {
+	_, ok := v.data.(*nullWrap)
+	if ok {
 		return true
 	}
 	return false

@@ -132,6 +132,7 @@ func TestAppend(t *testing.T) {
 }
 
 func TestMyJson2(t *testing.T) {
+	IsDebug = true
 	as := assert.New(t)
 	// myjson，懒人专用
 	/*
@@ -209,13 +210,13 @@ func TestMyJson2(t *testing.T) {
 	v = js.Get("hello").Index(123).Get("haha").String()
 	as.Equal("", v, "错误的值tostring返回空串")
 
-	/* 长数字 */
-	// js = NewJson2(`{"data":{"err":0},"env":{"longInt":60365780445566778}}`)
-	// fmt.Println(js.String())
-	// longInt, _ := js.Get("env").Get("longInt").Int()
-	// as.Equal(60365780445566778, longInt, "longInt的值不变")
+	/* exp7: 长数字 */
+	js = NewJson(`{"data":{"err":0},"env":{"longInt":60365780445566778}}`)
+	fmt.Println(js.String())
+	longInt, _ := js.Get("env").Get("longInt").Int()
+	as.Equal(60365780445566778, longInt, "longInt的值不变")
 
-	/* range函数 */
+	/* exp8: range函数 */
 
 	js = NewJson(`{"data1": 123, "data2": 456}`)
 	_ = js.RangeMap(func(key string, val MyJson2) (bool, error) {
@@ -239,12 +240,12 @@ func TestMyJson2(t *testing.T) {
 	as.Equal(jsIntArray[1], 1, "")
 	as.Equal(jsIntArray[2], 2, "")
 
-	/* float64 */
+	/* exp9: float64 */
 	js = NewJson(`{"data1": 123.321}`)
 	floatVal, _ := js.Get("data1").Float64()
 	as.Equal(123.321, floatVal, "转float64测试")
 
-	// 测试乱码 错误的json
+	// exp10: 测试乱码 错误的json
 	js = NewJson(`asdf;vjaspoipewqurj`)
 	as.Equal(true, js.IsErrOrNil(), fmt.Sprintf("json test is error:%v", js))
 
@@ -257,11 +258,11 @@ func TestMyJson2(t *testing.T) {
 	js = NewJson(`null`)
 	as.Equal(false, js.IsErrOrNil(), "json test null val is error")
 
-	// 测试clone
+	// exp11: 测试clone
 	js = NewJson(`{"data": 123.321, "arr":[{"name":"yzh"}]}`)
 	jscopy := js.Clone()
 
-	// 修改原数据的值
+	// exp11.1: 修改原数据的值
 	js.Set("data", 111)
 	js.Get("arr").Index(0).Set("name", "haha")
 
@@ -274,6 +275,39 @@ func TestMyJson2(t *testing.T) {
 	fmt.Println("copy js:", jscopy)
 
 	log.Println("all success")
+
+	// exp12: 测试 IsXXX
+	js = NewJson(`{"null": null}`)
+	as.Equal(false, js.Get("null").IsErrOrNil(), "测试 isNull")
+	as.Equal(true, js.Get("null").IsNull(), "测试 isNull")
+
+	js = NewJson("null")
+	as.Equal(false, js.IsErrOrNil(), "测试 isNull2")
+	as.Equal(true, js.IsNull(), "测试 isNull2")
+
+	js = NewJson(`{"null": null}`)
+	as.Equal(true, js.IsMap(), "测试 isMap1")
+
+	js = NewJson(`{}`)
+	as.Equal(true, js.IsMap(), "测试 isMap2")
+	as.Equal(false, js.IsErrOrNil(), "测试 isMap3")
+
+	js = NewJson(`[]`)
+	as.Equal(true, js.IsSlice(), "测试 isSlice1")
+	as.Equal(false, js.IsErrOrNil(), "测试 isSlice1")
+
+	err = js.RangeSlice(func(index int, val MyJson2) (bool, error) {
+		return true, nil
+	})
+	as.Equal(err, nil, "测试 isSlice 3")
+
+	err = js.RangeMap(func(key string, val MyJson2) (bool, error) {
+		return true, nil
+	})
+	Debugf("slice json range map:%v", err)
+	if err == nil {
+		as.Fail("测试 isSlice 4")
+	}
 }
 
 func BenchmarkTestMyjsonSysJson(b *testing.B) {

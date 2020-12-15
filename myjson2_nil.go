@@ -96,3 +96,7 @@ func (n *NilOrErrJson) IsSlice() bool {
 func (n *NilOrErrJson) IsMap() bool {
 	return false
 }
+
+func (n *NilOrErrJson) IsNull() bool {
+	return false
+}
