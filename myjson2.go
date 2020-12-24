@@ -69,6 +69,8 @@ func NewJson(val interface{}) MyJson2 {
 	case string:
 		val := NewJsonFromBytes([]byte(v))
 		return val
+	case MyJson2:
+		return v
 	}
 
 	refVal := reflect.ValueOf(val)
