@@ -232,7 +232,12 @@ func (v *ValueJson) Len() int {
 }
 
 func (v *ValueJson) String() string {
-	return string(v.Bytes())
+	switch objValue := v.data.(type) {
+	case string:
+		return objValue
+	default:
+		return ToStr(v.data)
+	}
 }
 
 func (v *ValueJson) Bytes() []byte {
