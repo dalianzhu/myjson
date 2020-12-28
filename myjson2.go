@@ -346,6 +346,12 @@ func ToStr(obj interface{}) string {
 		return string(v)
 	case MyJson2:
 		return v.String()
+	case int:
+		return strconv.FormatInt(int64(v), 10)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
 	default:
 		return fmt.Sprintf("%v", obj)
 	}

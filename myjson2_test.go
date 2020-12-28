@@ -1,10 +1,5 @@
 package myjson
 
-/*
-The MIT License (MIT)Copyright (C) <2019> <yinzihao>
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-
 import (
 	"encoding/json"
 	"fmt"
@@ -24,14 +19,6 @@ type testStruct struct {
 func TestMyJson2Simple(t *testing.T) {
 	IsDebug = true
 	as := assert.New(t)
-	// 	jsStr := `
-	// {"key1":{"key2":"123"}, "key3":{}}
-	// `
-	// 	js := NewJson(jsStr)
-	// 	Debugf("TestMyJson2:%v", js.Get("key1"))
-
-	// js = NewJson(longJsonVal)
-	// Debugf("TestMyJson2:%s", js)
 
 	jsStr := `{"Filters":[{"Name":"ServiceName","Values":["user_123"]}],"Limit":1024,"Offset":0}`
 	js := NewJson(jsStr)
@@ -43,6 +30,18 @@ func TestMyJson2Simple(t *testing.T) {
 	limit, err = ToInt(js.Get("Limit"))
 	as.Equal(1024, limit, "limit值为1024")
 	Debugf("err:%v, %s", err, js.String())
+
+	js.Set("Limit", 2048)
+	js = NewJson(js.Bytes())
+	limit, err = js.Get("Limit").Int()
+	as.Equal(err, nil)
+	as.Equal(2048, limit)
+
+	js.Set("Limit", 2048.123)
+	js = NewJson(js.Bytes())
+	floatLimit, err := js.Get("Limit").Float64()
+	as.Equal(err, nil)
+	as.Equal(2048.123, floatLimit)
 }
 
 func TestMyJson2Example(t *testing.T) {
@@ -146,8 +145,29 @@ func TestMyJson2(t *testing.T) {
 
 	// set操作
 	js.Set("Limit", 2048)
+
+	js.Set("testbool", true)
+	js.Set("testint", 123)
+	js.Set("testfloat", 12345678.123)
+	js.Set("testnull", GetJsonNull())
+	js.Set("teststr", "helloworld")
+
+	// 重新解析
+	js = NewJson(js.Bytes())
 	limit, _ = js.Get("Limit").Int()
-	as.Equal(2048, limit)
+	as.Equal(limit, 2048)
+
+	boolV, _ := js.Get("testbool").Bool()
+	as.Equal(boolV, true)
+	intV, _ := js.Get("testint").Int()
+	as.Equal(intV, 123)
+	floatV, _ := js.Get("testfloat").Float64()
+	as.Equal(floatV, 12345678.123)
+	nullV := js.Get("testnull").IsNull()
+	as.Equal(nullV, true)
+
+	strV := js.Get("teststr").String()
+	as.Equal(strV, "helloworld")
 
 	/* rm操作 */
 	js = NewJson(`{"name":"yzh", "age":18}`)
@@ -348,5 +368,20 @@ func BenchmarkTestMyjsonMarshal(b *testing.B) {
 	js := NewJson(bsVal)
 	for i := 0; i < b.N; i++ {
 		js.Bytes()
+	}
+}
+
+func TestToStr(t *testing.T) {
+	type args struct {
+		obj interface{}
+	}
+	tests := []interface{}{123.321, 123, -123.321, false, true, 1234567890123.123}
+	rets := []string{"123.321", "123", "-123.321", "false", "true", "1234567890123.123"}
+	for i, tt := range tests {
+		got := ToStr(tt)
+		if got != rets[i] {
+			log.Println("tostr test:", got)
+			t.Fail()
+		}
 	}
 }

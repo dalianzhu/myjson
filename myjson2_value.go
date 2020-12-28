@@ -20,8 +20,12 @@ func objToJsonStr(i interface{}) []byte {
 		b.WriteString(v)
 		b.WriteByte('"')
 		return b.Bytes()
+
 	case json.Number:
 		return []byte(v)
+
+	case int, int8, int16, int32, int64, uint, uint8, uint32, uint64, float32, float64:
+		return []byte(ToStr(i))
 
 	case *nullWrap:
 		return bytesNull
@@ -60,7 +64,7 @@ func objToJsonStr(i interface{}) []byte {
 		b.WriteByte(']')
 		return b.Bytes()
 	}
-	return []byte("")
+	return []byte("null")
 }
 
 type sliceWrap struct {
@@ -77,6 +81,10 @@ type nullWrap struct {
 }
 
 var globalNullWrap = &nullWrap{}
+
+func GetJsonNull() *nullWrap {
+	return globalNullWrap
+}
 
 var bytesNull = []byte("null")
 
