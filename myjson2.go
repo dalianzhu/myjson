@@ -30,8 +30,8 @@ type MyJson2 interface {
 	Set(key string, val interface{}) error
 	Rm(key string)
 	Index(i int) MyJson2
-	Insert(i int, val interface{}) (MyJson2, error)
-	Append(val interface{}) (MyJson2, error)
+	Insert(i int, val interface{}) error
+	Append(val interface{}) error
 
 	GetValue() interface{}
 	Len() int
@@ -151,12 +151,25 @@ func iterToPbValue(val interface{}) *structpb.Value {
 	return structpb.NewNullValue()
 }
 
-func valueToJson(val interface{}) interface{} {
-	v, ok := val.(*ValueJson)
-	if ok {
-		return v.data
+func valueToJsonGoVal(val interface{}) (interface{}, error) {
+	switch setData := val.(type) {
+	case MyJson2:
+		return setData.GetValue(), nil
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return val, nil
+	case string:
+		return val, nil
+	case nil, *nullWrap:
+		return GetJsonNull(), nil
+	case *sliceWrap:
+		return val, nil
+	case time.Time:
+		return setData.Format("2006-01-02 15:04:05"), nil
+	case bool:
+		return val, nil
+	default:
+		return nil, fmt.Errorf("val:%v cannot set to json", val)
 	}
-	return val
 }
 
 func (v *ValueJson) Set(key string, val interface{}) error {
@@ -168,24 +181,11 @@ func (v *ValueJson) Set(key string, val interface{}) error {
 		return fmt.Errorf("json is not map json")
 	}
 
-	switch setData := val.(type) {
-	case MyJson2:
-		structVal[key] = setData.GetValue()
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-		structVal[key] = val
-	case string:
-		structVal[key] = val
-	case nil, *nullWrap:
-		structVal[key] = GetJsonNull()
-	case *sliceWrap:
-		structVal[key] = val
-	case time.Time:
-		structVal[key] = setData.Format("2006-01-02 15:04:05")
-	case bool:
-		structVal[key] = val
-	default:
-		return fmt.Errorf("val:%v cannot set to json", val)
+	goVal, err := valueToJsonGoVal(val)
+	if err != nil {
+		return err
 	}
+	structVal[key] = goVal
 	return nil
 }
 
@@ -221,26 +221,32 @@ func insertValue(sliceBody *sliceWrap, index int, val interface{}) {
 	sliceBody.sliceData = append(tpSlice, rear...)
 }
 
-func (v *ValueJson) Insert(i int, val interface{}) (MyJson2, error) {
+func (v *ValueJson) Insert(i int, val interface{}) error {
 	listVal, ok := v.data.(*sliceWrap)
 	if !ok {
-		return &NilOrErrJson{}, fmt.Errorf("json is not slice json")
+		return fmt.Errorf("json is not slice json")
 	}
 
-	tpValue := valueToJson(val)
+	tpValue, err := valueToJsonGoVal(val)
+	if err != nil {
+		return err
+	}
 	insertValue(listVal, i, tpValue)
-	return v, nil
+	return nil
 }
 
-func (v *ValueJson) Append(val interface{}) (MyJson2, error) {
+func (v *ValueJson) Append(val interface{}) error {
 	l, ok := v.data.(*sliceWrap)
 	if !ok {
-		return &NilOrErrJson{}, fmt.Errorf("json is not slice json")
+		return fmt.Errorf("json is not slice json")
 	}
-	tpValue := valueToJson(val)
+	tpValue, err := valueToJsonGoVal(val)
+	if err != nil {
+		return err
+	}
 	// Debugf("append:%v\n", jsonValKind)
 	l.sliceData = append(l.sliceData, tpValue)
-	return v, nil
+	return nil
 }
 
 func (v *ValueJson) Len() int {
@@ -362,7 +368,7 @@ func ToStr(obj interface{}) string {
 	case *nullWrap:
 		return string(bytesNull)
 	case *sliceWrap:
-		return string(objToJsonStr(v))
+		return string(goValToJsonStr(v))
 	case []byte:
 		return string(v)
 	case MyJson2:
@@ -468,7 +474,7 @@ func ToBool(item interface{}) (bool, error) {
 
 func (v *ValueJson) MarshalJSON() ([]byte, error) {
 	// return json.Marshal(v.data)
-	ret := objToJsonStr(v.data)
+	ret := goValToJsonStr(v.data)
 	Debugf("ValueJson Marshal:%v", ret)
 	return ret, nil
 }

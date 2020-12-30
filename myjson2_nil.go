@@ -27,7 +27,7 @@ func (n *NilOrErrJson) Get(key string) MyJson2 {
 }
 
 func (n *NilOrErrJson) Set(key string, val interface{}) error {
-	return nil
+	return fmt.Errorf("nil cannot set")
 }
 
 func (n *NilOrErrJson) PbValue() *structpb.Value {
@@ -41,12 +41,12 @@ func (n *NilOrErrJson) Index(i int) MyJson2 {
 	return new(NilOrErrJson)
 }
 
-func (n *NilOrErrJson) Insert(i int, val interface{}) (MyJson2, error) {
-	return new(NilOrErrJson), nil
+func (n *NilOrErrJson) Insert(i int, val interface{}) error {
+	return fmt.Errorf("nil cannot insert")
 }
 
-func (n *NilOrErrJson) Append(val interface{}) (MyJson2, error) {
-	return new(NilOrErrJson), nil
+func (n *NilOrErrJson) Append(val interface{}) error {
+	return fmt.Errorf("nil cannot append")
 }
 
 func (n *NilOrErrJson) Len() int {

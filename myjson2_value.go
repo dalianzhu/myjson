@@ -11,7 +11,7 @@ import (
 var bytesTrue = []byte("true")
 var bytesFalse = []byte("false")
 
-func objToJsonStr(i interface{}) []byte {
+func goValToJsonStr(i interface{}) []byte {
 	switch v := i.(type) {
 	case string:
 		var b bytes.Buffer
@@ -44,7 +44,7 @@ func objToJsonStr(i interface{}) []byte {
 			b.WriteString(key)
 			b.WriteByte('"')
 			b.WriteByte(':')
-			b.Write(objToJsonStr(mapVal))
+			b.Write(goValToJsonStr(mapVal))
 			if i != len(v) {
 				b.WriteByte(',')
 			}
@@ -55,7 +55,7 @@ func objToJsonStr(i interface{}) []byte {
 		var b bytes.Buffer
 		b.WriteByte('[')
 		for i, val := range v.sliceData {
-			b.Write(objToJsonStr(val))
+			b.Write(goValToJsonStr(val))
 			if i != len(v.sliceData)-1 {
 				b.WriteByte(',')
 			}
@@ -73,7 +73,7 @@ type sliceWrap struct {
 func (s *sliceWrap) MarshalJSON() ([]byte, error) {
 	// Debugf("sliceWrap MarshalJson:")
 	// return json.Marshal(s.sliceData)
-	return objToJsonStr(s), nil
+	return goValToJsonStr(s), nil
 }
 
 type nullWrap struct {
