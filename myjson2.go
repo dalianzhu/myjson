@@ -175,8 +175,10 @@ func (v *ValueJson) Set(key string, val interface{}) error {
 		structVal[key] = val
 	case string:
 		structVal[key] = val
-	case nil, *nullWrap, *sliceWrap:
+	case nil, *nullWrap:
 		structVal[key] = GetJsonNull()
+	case *sliceWrap:
+		structVal[key] = val
 	case time.Time:
 		structVal[key] = setData.Format("2006-01-02 15:04:05")
 	case bool:
