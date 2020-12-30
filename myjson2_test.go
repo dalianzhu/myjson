@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,28 +21,12 @@ func TestMyJson2Simple(t *testing.T) {
 	IsDebug = true
 	as := assert.New(t)
 
-	jsStr := `{"Filters":[{"Name":"ServiceName","Values":["user_123"]}],"Limit":1024,"Offset":0}`
-	js := NewJson(jsStr)
-
-	limit, err := js.Get("Limit").Int()
-	as.Equal(1024, limit, "limit值为1024")
-	Debugf("err:%v, %s", err, js.String())
-
-	limit, err = ToInt(js.Get("Limit"))
-	as.Equal(1024, limit, "limit值为1024")
-	Debugf("err:%v, %s", err, js.String())
-
-	js.Set("Limit", 2048)
+	js := NewJson("{}")
+	js.Set("hello", NewJson(`{"world": 1}`))
 	js = NewJson(js.Bytes())
-	limit, err = js.Get("Limit").Int()
-	as.Equal(err, nil)
-	as.Equal(2048, limit)
-
-	js.Set("Limit", 2048.123)
-	js = NewJson(js.Bytes())
-	floatLimit, err := js.Get("Limit").Float64()
-	as.Equal(err, nil)
-	as.Equal(2048.123, floatLimit)
+	Debugf("simple js:%s", js.String())
+	v, _ := js.Get("hello").Get("world").Int()
+	as.Equal(v, 1)
 }
 
 func TestMyJson2Example(t *testing.T) {
@@ -131,7 +116,7 @@ func TestAppend(t *testing.T) {
 }
 
 func TestMyJson2(t *testing.T) {
-	IsDebug = true
+	// IsDebug = true
 	as := assert.New(t)
 	// myjson，懒人专用
 	/*
@@ -151,6 +136,8 @@ func TestMyJson2(t *testing.T) {
 	js.Set("testfloat", 12345678.123)
 	js.Set("testnull", GetJsonNull())
 	js.Set("teststr", "helloworld")
+	js.Set("testtime", time.Now())
+	js.Set("testjs", NewJson(`{"world": 1}`))
 
 	// 重新解析
 	js = NewJson(js.Bytes())
@@ -169,6 +156,11 @@ func TestMyJson2(t *testing.T) {
 	strV := js.Get("teststr").String()
 	as.Equal(strV, "helloworld")
 
+	timeV := js.Get("testtime").String()
+	as.Equal(timeV, time.Now().Format("2006-01-02 15:04:05"))
+
+	jsV, _ := js.Get("testjs").Get("world").Int()
+	as.Equal(jsV, 1)
 	/* rm操作 */
 	js = NewJson(`{"name":"yzh", "age":18}`)
 	js.Rm("age")

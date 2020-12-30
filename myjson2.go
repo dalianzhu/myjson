@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -167,7 +168,22 @@ func (v *ValueJson) Set(key string, val interface{}) error {
 		return fmt.Errorf("json is not map json")
 	}
 
-	structVal[key] = val
+	switch setData := val.(type) {
+	case MyJson2:
+		structVal[key] = setData.GetValue()
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		structVal[key] = val
+	case string:
+		structVal[key] = val
+	case nil, *nullWrap, *sliceWrap:
+		structVal[key] = GetJsonNull()
+	case time.Time:
+		structVal[key] = setData.Format("2006-01-02 15:04:05")
+	case bool:
+		structVal[key] = val
+	default:
+		return fmt.Errorf("val:%v cannot set to json", val)
+	}
 	return nil
 }
 
@@ -237,6 +253,9 @@ func (v *ValueJson) String() string {
 	switch objValue := v.data.(type) {
 	case string:
 		return objValue
+	case *sliceWrap, map[string]interface{}:
+		ret, _ := v.MarshalJSON()
+		return string(ret)
 	default:
 		return ToStr(v.data)
 	}

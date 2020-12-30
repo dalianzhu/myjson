@@ -12,7 +12,6 @@ var bytesTrue = []byte("true")
 var bytesFalse = []byte("false")
 
 func objToJsonStr(i interface{}) []byte {
-	Debugf("objToJsonStr:%v", i)
 	switch v := i.(type) {
 	case string:
 		var b bytes.Buffer
