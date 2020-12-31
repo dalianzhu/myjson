@@ -14,15 +14,10 @@ var bytesFalse = []byte("false")
 func goValToJsonStr(i interface{}) []byte {
 	switch v := i.(type) {
 	case string:
-		var b bytes.Buffer
-		b.WriteByte('"')
-		b.WriteString(v)
-		b.WriteByte('"')
-		return b.Bytes()
-
+		jsBytes, _ := jsonit.Marshal(v)
+		return jsBytes
 	case json.Number:
 		return []byte(v)
-
 	case int, int8, int16, int32, int64, uint, uint8, uint32, uint64, float32, float64:
 		return []byte(ToStr(i))
 
@@ -72,7 +67,7 @@ type sliceWrap struct {
 
 func (s *sliceWrap) MarshalJSON() ([]byte, error) {
 	// Debugf("sliceWrap MarshalJson:")
-	// return json.Marshal(s.sliceData)
+	// return jsonit.Marshal(s.sliceData)
 	return goValToJsonStr(s), nil
 }
 
@@ -88,7 +83,7 @@ func GetJsonNull() *nullWrap {
 var bytesNull = []byte("null")
 
 func (s *nullWrap) MarshalJSON() ([]byte, error) {
-	Debugf("nullWrap MarshalJson:")
+	// Debugf("nullWrap MarshalJson:")
 	return bytesNull, nil
 }
 

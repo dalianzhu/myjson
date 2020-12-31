@@ -138,9 +138,11 @@ func TestMyJson2(t *testing.T) {
 	js.Set("teststr", "helloworld")
 	js.Set("testtime", time.Now())
 	js.Set("testjs", NewJson(`{"world": 1}`))
+	js.Set("testspestr", `"haha":"我是大猪"`)
 
 	// 重新解析
 	js = NewJson(js.Bytes())
+	fmt.Printf("js:%s\n", js)
 	limit, _ = js.Get("Limit").Int()
 	as.Equal(limit, 2048)
 
@@ -161,6 +163,10 @@ func TestMyJson2(t *testing.T) {
 
 	jsV, _ := js.Get("testjs").Get("world").Int()
 	as.Equal(jsV, 1)
+
+	jsSpe := js.Get("testspestr").String()
+	as.Equal(jsSpe, `"haha":"我是大猪"`)
+
 	/* rm操作 */
 	js = NewJson(`{"name":"yzh", "age":18}`)
 	js.Rm("age")

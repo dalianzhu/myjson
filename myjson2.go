@@ -14,8 +14,11 @@ import (
 	"strings"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+var jsonit = jsoniter.ConfigCompatibleWithStandardLibrary
 
 var IsDebug = false
 
@@ -473,10 +476,10 @@ func ToBool(item interface{}) (bool, error) {
 }
 
 func (v *ValueJson) MarshalJSON() ([]byte, error) {
-	// return json.Marshal(v.data)
-	ret := goValToJsonStr(v.data)
-	Debugf("ValueJson Marshal:%v", ret)
-	return ret, nil
+	return jsonit.Marshal(v.data)
+	// ret := goValToJsonStr(v.data)
+	// Debugf("ValueJson Marshal:%v", ret)
+	// return ret, nil
 }
 
 func (v *ValueJson) UnmarshalJSON(bytesVal []byte) error {
