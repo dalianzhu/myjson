@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type testStruct struct {
@@ -19,14 +20,10 @@ type testStruct struct {
 
 func TestMyJson2Simple(t *testing.T) {
 	IsDebug = true
-	as := assert.New(t)
-
+	// as := assert.New(t)
 	js := NewJson("{}")
-	js.Set("hello", NewJson(`{"world": 1}`))
-	js = NewJson(js.Bytes())
-	Debugf("simple js:%s", js.String())
-	v, _ := js.Get("hello").Get("world").Int()
-	as.Equal(v, 1)
+	js.Set(`"hello":"tests\"pestr"`, `"world\`)
+	Debugf("TestMyJson2Simple: s:%s", js)
 }
 
 func TestMyJson2Example(t *testing.T) {
@@ -138,11 +135,11 @@ func TestMyJson2(t *testing.T) {
 	js.Set("teststr", "helloworld")
 	js.Set("testtime", time.Now())
 	js.Set("testjs", NewJson(`{"world": 1}`))
-	js.Set("testspestr", `"haha":"我是大猪"`)
+	js.Set(`"hello":"tests\"pestr"`, `"haha":"我是大猪"`)
 
 	// 重新解析
 	js = NewJson(js.Bytes())
-	fmt.Printf("js:%s\n", js)
+	// fmt.Printf("js:%s\n", js)
 	limit, _ = js.Get("Limit").Int()
 	as.Equal(limit, 2048)
 
@@ -164,7 +161,7 @@ func TestMyJson2(t *testing.T) {
 	jsV, _ := js.Get("testjs").Get("world").Int()
 	as.Equal(jsV, 1)
 
-	jsSpe := js.Get("testspestr").String()
+	jsSpe := js.Get(`"hello":"tests\"pestr"`).String()
 	as.Equal(jsSpe, `"haha":"我是大猪"`)
 
 	/* rm操作 */
@@ -354,18 +351,32 @@ func BenchmarkTestMyjsonSysJsonMarshal(b *testing.B) {
 	}
 }
 
-func BenchmarkTestMyjson(b *testing.B) {
-	bsVal := []byte(longJsonVal)
-	for i := 0; i < b.N; i++ {
-		NewJson(bsVal)
-	}
-}
-
 func BenchmarkTestMyjsonMarshal(b *testing.B) {
 	bsVal := []byte(longJsonVal)
 	js := NewJson(bsVal)
 	for i := 0; i < b.N; i++ {
 		js.Bytes()
+	}
+}
+
+func BenchmarkTestPbMarshal(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	s := &structpb.Struct{}
+	err := s.UnmarshalJSON(bsVal)
+	if err != nil {
+		b.Fail()
+		return
+	}
+
+	for i := 0; i < b.N; i++ {
+		s.MarshalJSON()
+	}
+}
+
+func BenchmarkTestMyjson(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	for i := 0; i < b.N; i++ {
+		NewJson(bsVal)
 	}
 }
 

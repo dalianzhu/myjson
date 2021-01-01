@@ -11,54 +11,16 @@ import (
 var bytesTrue = []byte("true")
 var bytesFalse = []byte("false")
 
-func goValToJsonStr(i interface{}) []byte {
-	switch v := i.(type) {
-	case string:
-		jsBytes, _ := jsonit.Marshal(v)
-		return jsBytes
-	case json.Number:
-		return []byte(v)
-	case int, int8, int16, int32, int64, uint, uint8, uint32, uint64, float32, float64:
-		return []byte(ToStr(i))
+var bytesQuoto = []byte(`"`)
+var bytesQuotoReplaced = []byte(`\"`)
 
-	case *nullWrap:
-		return bytesNull
+var bytesSlash = []byte(`\`)
+var bytesSlashReplaced = []byte(`\\`)
 
-	case bool:
-		if v {
-			return bytesTrue
-		}
-		return bytesFalse
-	case map[string]interface{}:
-		var b bytes.Buffer
-		b.WriteByte('{')
-		i := 0
-		for key, mapVal := range v {
-			i++
-			b.WriteByte('"')
-			b.WriteString(key)
-			b.WriteByte('"')
-			b.WriteByte(':')
-			b.Write(goValToJsonStr(mapVal))
-			if i != len(v) {
-				b.WriteByte(',')
-			}
-		}
-		b.WriteByte('}')
-		return b.Bytes()
-	case *sliceWrap:
-		var b bytes.Buffer
-		b.WriteByte('[')
-		for i, val := range v.sliceData {
-			b.Write(goValToJsonStr(val))
-			if i != len(v.sliceData)-1 {
-				b.WriteByte(',')
-			}
-		}
-		b.WriteByte(']')
-		return b.Bytes()
-	}
-	return []byte("null")
+func bytesToJsBytes(btVal []byte) []byte {
+	tp := bytes.Replace(btVal, bytesSlash, bytesSlashReplaced, -1)
+	tp = bytes.Replace(tp, bytesQuoto, bytesQuotoReplaced, -1)
+	return tp
 }
 
 type sliceWrap struct {
@@ -66,9 +28,8 @@ type sliceWrap struct {
 }
 
 func (s *sliceWrap) MarshalJSON() ([]byte, error) {
-	// Debugf("sliceWrap MarshalJson:")
-	// return jsonit.Marshal(s.sliceData)
-	return goValToJsonStr(s), nil
+	Debugf("sliceWrap MarshalJson:")
+	return jsonit.Marshal(s.sliceData)
 }
 
 type nullWrap struct {
