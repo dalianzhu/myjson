@@ -368,6 +368,8 @@ func (v *ValueJson) IsNull() bool {
 
 func ToStr(obj interface{}) string {
 	switch v := obj.(type) {
+	case string:
+		return v
 	case *nullWrap:
 		return string(bytesNull)
 	case *sliceWrap:
