@@ -27,6 +27,10 @@ type sliceWrap struct {
 	sliceData []interface{}
 }
 
+func (s *sliceWrap) GetValue() []interface{} {
+	return s.sliceData
+}
+
 func (s *sliceWrap) MarshalJSON() ([]byte, error) {
 	Debugf("sliceWrap MarshalJson:")
 	return jsonit.Marshal(s.sliceData)
