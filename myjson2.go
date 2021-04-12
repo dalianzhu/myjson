@@ -104,6 +104,10 @@ type ValueJson struct {
 	data interface{}
 }
 
+func (v *ValueJson) SetData(i interface{}) {
+	v.data = i
+}
+
 func (v *ValueJson) GetValue() interface{} {
 	return v.data
 }
