@@ -79,7 +79,7 @@ func NewJson(val interface{}) MyJson2 {
 
 	refVal := reflect.ValueOf(val)
 	switch refVal.Kind() {
-	case reflect.Struct, reflect.Slice:
+	case reflect.Struct, reflect.Slice, reflect.Map:
 		bytesVal, err := json.Marshal(val)
 		if err != nil {
 			// errstr := fmt.Sprintf("js解析失败：%v", err)
@@ -105,7 +105,19 @@ type ValueJson struct {
 }
 
 func (v *ValueJson) SetData(i interface{}) {
-	v.data = i
+	if i == nil {
+		v.data = globalNullWrap
+		return
+	}
+	switch val := i.(type) {
+	case []interface{}:
+		sliceVal := &sliceWrap{}
+		sliceVal.sliceData = val
+		v.data = sliceVal
+		return
+	default:
+		v.data = i
+	}
 }
 
 func (v *ValueJson) GetValue() interface{} {
