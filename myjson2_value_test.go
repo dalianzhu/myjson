@@ -6,6 +6,65 @@ import (
 	"testing"
 )
 
+func TestKeysItems(t *testing.T) {
+	js := NewJson("{}")
+	keys, err := js.Keys()
+	if err != nil {
+		t.Fail()
+		return
+	}
+	log.Printf("keys:%v", keys)
+	js.Set("hello", "world")
+	js.Set("hello1", NewJson(`{"sub":"haha"}`))
+	keys, err = js.Keys()
+	if err != nil {
+		t.Fail()
+		return
+	}
+	log.Printf("keys:%v", keys)
+	if !stringIn("hello", keys) {
+		t.Fail()
+		return
+	}
+	if !stringIn("hello1", keys) {
+		t.Fail()
+		return
+	}
+	_, err = js.Items()
+	if err == nil {
+		t.Fail()
+		return
+	}
+
+	js = NewJson("[]")
+	items, err := js.Items()
+	if err != nil {
+		t.Fail()
+		return
+	}
+	log.Printf("items:%v", items)
+	js.Append("hello")
+	items, err = js.Items()
+	if err != nil {
+		t.Fail()
+		return
+	}
+	log.Printf("items:%v", items)
+	if items[0].(string) != "hello" {
+		t.Fail()
+		return
+	}
+}
+
+func stringIn(str string, arr []string) bool {
+	for _, v := range arr {
+		if str == v {
+			return true
+		}
+	}
+	return false
+}
+
 func TestMapJsonVal_UnmarshalJSON(t *testing.T) {
 	js2 := ` [1,2,3,4,{"key":123,
 "sub":

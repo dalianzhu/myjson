@@ -100,3 +100,11 @@ func (n *NilOrErrJson) IsMap() bool {
 func (n *NilOrErrJson) IsNull() bool {
 	return false
 }
+
+func (n *NilOrErrJson) Keys() ([]string, error) {
+	return nil, fmt.Errorf("Nil json has no keys")
+}
+
+func (n *NilOrErrJson) Items() ([]interface{}, error) {
+	return nil, fmt.Errorf("nil json has no items")
+}

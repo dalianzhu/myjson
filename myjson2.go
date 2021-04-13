@@ -45,6 +45,9 @@ type MyJson2 interface {
 	Bool() (bool, error)
 	Clone() MyJson2
 
+	Keys() ([]string, error)
+	Items() ([]interface{}, error)
+
 	RangeSlice(f func(index int, val MyJson2) (bool, error)) error
 	RangeMap(f func(key string, val MyJson2) (bool, error)) error
 
@@ -308,6 +311,30 @@ func (v *ValueJson) Float64() (float64, error) {
 
 func (v *ValueJson) Bool() (bool, error) {
 	return ToBool(v.data)
+}
+
+func (v *ValueJson) Keys() ([]string, error) {
+	mapVal, ok := v.data.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("json is not map, has no keys")
+	}
+	ret := make([]string, 0, 10)
+	for key := range mapVal {
+		ret = append(ret, key)
+	}
+	return ret, nil
+}
+
+func (n *ValueJson) Items() ([]interface{}, error) {
+	l, ok := n.data.(*sliceWrap)
+	if !ok {
+		return nil, fmt.Errorf("%v is not slice, has no items", n.data)
+	}
+	ret := make([]interface{}, 0, 10)
+	for _, tpVal := range l.sliceData {
+		ret = append(ret, tpVal)
+	}
+	return ret, nil
 }
 
 func (v *ValueJson) RangeSlice(f func(index int, val MyJson2) (bool, error)) error {
