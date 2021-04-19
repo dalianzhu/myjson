@@ -1,4 +1,4 @@
-module github.com/dalianzhu/myjson
+module github.com/dalianzhu/myjson/v2
 
 go 1.12
 
