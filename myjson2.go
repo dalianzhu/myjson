@@ -1,12 +1,10 @@
 package myjson
 
 import (
-	"bytes"
 	"encoding/json"
 	sysjson "encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"reflect"
@@ -527,48 +525,48 @@ func (v *ValueJson) MarshalJSON() ([]byte, error) {
 	return jsonit.Marshal(v.data)
 }
 
-func (v *ValueJson) UnmarshalJSON(bytesVal []byte) error {
-	Debugf("ValueJson UnmarshalJSON run")
-	dec := json.NewDecoder(bytes.NewReader(bytesVal))
-	dec.UseNumber()
-	for {
-		t, err := dec.Token()
-		if err == io.EOF {
-			return nil
+func switchValue(iter *jsoniter.Iterator) interface{} {
+	switch iter.WhatIsNext() {
+	case jsoniter.ArrayValue:
+		sliceVal := &sliceWrap{}
+		sliceVal.sliceData = make([]interface{}, 0, 10)
+		ret := iter.ReadArrayCB(func(i *jsoniter.Iterator) bool {
+			sliceVal.sliceData = append(sliceVal.sliceData, switchValue(i))
+			return true
+		})
+		if ret == false {
+			return &NilOrErrJson{}
 		}
-		if err != nil {
-			return err
+		return sliceVal
+	case jsoniter.ObjectValue:
+		mapVal := make(map[string]interface{})
+		ret := iter.ReadMapCB(func(i *jsoniter.Iterator, s string) bool {
+			mapVal[s] = switchValue(i)
+			return true
+		})
+		if ret == false {
+			return &NilOrErrJson{}
 		}
-		Debugf("ValueJson UnmarshalJSON token: %T %v", t, t)
-		// 此时val有两种情况，一种是普通值
-		switch typeVal := t.(type) {
-		default:
-			v.data = typeVal
-		case nil:
-			v.data = globalNullWrap
-		// 还可能是一个deli
-		case json.Delim:
-			// 如果是一个map，则转入下轮
-			deli := typeVal.String()
-			if deli == "{" {
-				Debugf("ValueJson UnmarshalJSON map case")
-				m := make(map[string]interface{}, 10)
-				err = decodeMap(dec, m)
-				if err != nil {
-					return err
-				}
-				v.data = m
-			} else if deli == "[" {
-				sliceVal := &sliceWrap{}
-				sliceVal.sliceData = make([]interface{}, 0, 10)
-				err = decodeSlice(dec, sliceVal)
-				if err != nil {
-					return err
-				}
-				v.data = sliceVal
-			} else if deli == "]" || deli == "}" {
-				return nil
-			}
-		}
+		return mapVal
+	case jsoniter.NilValue:
+		iter.Read()
+		return globalNullWrap
+	case jsoniter.NumberValue:
+		return iter.ReadNumber()
+	case jsoniter.StringValue:
+		return iter.ReadString()
+	case jsoniter.BoolValue:
+		return iter.ReadBool()
+	case jsoniter.InvalidValue:
+		Debugf("find InvalidValue")
+		iter.Read()
+		return &NilOrErrJson{}
 	}
+	return &NilOrErrJson{}
+}
+
+func (v *ValueJson) UnmarshalJSON(bytesVal []byte) error {
+	iter := jsoniter.ParseBytes(jsoniter.ConfigDefault, bytesVal)
+	v.data = switchValue(iter)
+	return nil
 }

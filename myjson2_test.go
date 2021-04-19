@@ -21,9 +21,9 @@ type testStruct struct {
 func TestMyJson2Simple(t *testing.T) {
 	IsDebug = true
 	// as := assert.New(t)
-	js := NewJson("{}")
-	js.Set(`"hello":"tests\"pestr"`, `"world\`)
-	Debugf("TestMyJson2Simple: s:%s", js)
+	js := NewJson(`{"testnull":null,"testarr":[null,[0,1,[0  ]], "teststr":"haha"}`)
+	// js.Set(`"hello":"tests\"pestr"`, `"world\`)
+	Debugf("TestMyJson2Simple s:%s %v", js, js.IsErrOrNil())
 }
 
 func TestMyJson2Example(t *testing.T) {
@@ -113,7 +113,7 @@ func TestAppend(t *testing.T) {
 }
 
 func TestMyJson2(t *testing.T) {
-	// IsDebug = true
+	IsDebug = true
 	as := assert.New(t)
 	// myjson，懒人专用
 	/*
@@ -133,12 +133,16 @@ func TestMyJson2(t *testing.T) {
 	js.Set("testfloat", 12345678.123)
 	js.Set("testnull", GetJsonNull())
 	js.Set("teststr", "helloworld")
+
 	js.Set("testtime", time.Now())
 	js.Set("testjs", NewJson(`{"world": 1}`))
 	js.Set(`"hello":"tests\"pestr"`, `"haha":"我是大猪"`)
 
 	// 重新解析
+	Debugf("js0:%s", js)
 	js = NewJson(js.Bytes())
+	Debugf("js1:%s", js)
+
 	// fmt.Printf("js:%s\n", js)
 	limit, _ = js.Get("Limit").Int()
 	as.Equal(limit, 2048)
@@ -152,8 +156,9 @@ func TestMyJson2(t *testing.T) {
 	nullV := js.Get("testnull").IsNull()
 	as.Equal(nullV, true)
 
+	Debugf("js:%s", js)
 	strV := js.Get("teststr").String()
-	as.Equal(strV, "helloworld")
+	as.Equal("helloworld", strV)
 
 	timeV := js.Get("testtime").String()
 	as.Equal(timeV, time.Now().Format("2006-01-02 15:04:05"))
@@ -330,7 +335,7 @@ func TestMyJson2(t *testing.T) {
 	}
 }
 
-func BenchmarkTestMyjsonSysJson(b *testing.B) {
+func BenchmarkTestSysJsonUnmarshal(b *testing.B) {
 	bsVal := []byte(longJsonVal)
 	for i := 0; i < b.N; i++ {
 		tp := new(testLongJsonStruct)
@@ -341,7 +346,13 @@ func BenchmarkTestMyjsonSysJson(b *testing.B) {
 	}
 }
 
-func BenchmarkTestMyjsonSysJsonMarshal(b *testing.B) {
+func BenchmarkTestMyjsonUnmarshal(b *testing.B) {
+	bsVal := []byte(longJsonVal)
+	for i := 0; i < b.N; i++ {
+		NewJson(bsVal)
+	}
+}
+func BenchmarkTestSysJsonMarshal(b *testing.B) {
 	bsVal := []byte(longJsonVal)
 	tp := new(testLongJsonStruct)
 	json.Unmarshal(bsVal, tp)
@@ -370,13 +381,6 @@ func BenchmarkTestPbMarshal(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		s.MarshalJSON()
-	}
-}
-
-func BenchmarkTestMyjson(b *testing.B) {
-	bsVal := []byte(longJsonVal)
-	for i := 0; i < b.N; i++ {
-		NewJson(bsVal)
 	}
 }
 
