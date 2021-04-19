@@ -170,7 +170,6 @@ func iterToPbValue(val interface{}) *structpb.Value {
 		}
 		return tpVal
 	}
-	return structpb.NewNullValue()
 }
 
 func valueToJsonGoVal(val interface{}) (interface{}, error) {
