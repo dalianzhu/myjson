@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type testStruct struct {
@@ -228,7 +227,7 @@ func TestMyJson2(t *testing.T) {
 	}
 
 	v = js.Get("hello").Index(123).Get("haha").String()
-	as.Equal("", v, "错误的值tostring返回空串")
+	as.Equal("The data is not a slice, you cannot use Index", v, "错误的值tostring返回空串")
 
 	/* exp7: 长数字 */
 	js = NewJson(`{"data":{"err":0},"env":{"longInt":60365780445566778}}`)
@@ -367,20 +366,6 @@ func BenchmarkTestMyjsonMarshal(b *testing.B) {
 	js := NewJson(bsVal)
 	for i := 0; i < b.N; i++ {
 		js.Bytes()
-	}
-}
-
-func BenchmarkTestPbMarshal(b *testing.B) {
-	bsVal := []byte(longJsonVal)
-	s := &structpb.Struct{}
-	err := s.UnmarshalJSON(bsVal)
-	if err != nil {
-		b.Fail()
-		return
-	}
-
-	for i := 0; i < b.N; i++ {
-		s.MarshalJSON()
 	}
 }
 
