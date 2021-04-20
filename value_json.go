@@ -291,8 +291,6 @@ func ToStr(obj interface{}) string {
 	switch v := obj.(type) {
 	case string:
 		return v
-	case *NullValue:
-		return "null"
 	case *SliceValue:
 		ret, err := v.MarshalJSON()
 		if err != nil {
@@ -303,8 +301,6 @@ func ToStr(obj interface{}) string {
 		return string(v)
 	case MyJson2:
 		return v.String()
-	case *ErrorValue:
-		return v.Err.Error()
 	case int:
 		return strconv.FormatInt(int64(v), 10)
 	case int64:

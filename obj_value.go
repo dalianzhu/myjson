@@ -52,5 +52,8 @@ type ErrorValue struct {
 }
 
 func (e *ErrorValue) String() string {
-	return e.Err.Error()
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	return ""
 }
