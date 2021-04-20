@@ -53,7 +53,7 @@ func valueToJsonGoVal(val interface{}) (interface{}, error) {
 	case string:
 		return val, nil
 	case nil, *NullValue:
-		return GetJsonNull(), nil
+		return GetJsonValNull(), nil
 	case *SliceValue:
 		return val, nil
 	case time.Time:
@@ -292,7 +292,7 @@ func ToStr(obj interface{}) string {
 	case string:
 		return v
 	case *NullValue:
-		return string(bytesNull)
+		return "null"
 	case *SliceValue:
 		ret, err := v.MarshalJSON()
 		if err != nil {

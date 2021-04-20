@@ -66,6 +66,7 @@ func stringIn(str string, arr []string) bool {
 }
 
 func TestMapJsonVal_UnmarshalJSON(t *testing.T) {
+	IsDebug = true
 	js2 := ` [1,2,3,4,{"key":123,
 "sub":
 [1,2,3,   12341234125123412357890987]},null,1,true,
@@ -78,7 +79,9 @@ false]`
 	Debugf("Unmarshal json:%v", m.data)
 
 	v, err := json.Marshal(m)
-	log.Printf("mapVal:%s, %v\n", v, err)
+	Debugf("mapVal:%s, %v\n", v, err)
+	m.data = GetJsonValNull()
+	Debugf("Null val:%v", m)
 }
 
 func TestMapJsonVal_MarshalJSON(t *testing.T) {

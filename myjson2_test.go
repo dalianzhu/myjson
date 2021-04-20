@@ -130,7 +130,7 @@ func TestMyJson2(t *testing.T) {
 	js.Set("testbool", true)
 	js.Set("testint", 123)
 	js.Set("testfloat", 12345678.123)
-	js.Set("testnull", GetJsonNull())
+	js.Set("testnull", GetJsonValNull())
 	js.Set("teststr", "helloworld")
 
 	js.Set("testtime", time.Now())
